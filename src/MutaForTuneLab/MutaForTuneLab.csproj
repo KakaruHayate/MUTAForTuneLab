@@ -1,0 +1,81 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- MUTA 歌声合成引擎的 TuneLab voice 插件。
+
+       SDK 契约（TuneLab.Foundation / TuneLab.SDK）由宿主提供、所有插件共享：
+       这里 Private=false 表示「不复制到输出、打包时别带」。宿主自己那份在运行时解析。
+
+       编译期需要一份 SDK 的 dll 来做引用。用 TuneLabDir 指向一个 TuneLab 安装目录：
+           dotnet build -p:TuneLabDir="C:\Program Files\TuneLab"
+       或设环境变量 TUNELAB_DIR。tools\build.ps1 会自动探测。
+       建议对着**你要求的最低支持版本**编译（当前 2.0.0），这样不会误用新 API。 -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>MutaForTuneLab</RootNamespace>
+    <AssemblyName>MutaForTuneLab</AssemblyName>
+    <PlatformTarget>x64</PlatformTarget>
+    <Platforms>x64</Platforms>
+    <!-- 插件是动态加载的程序集：让 NuGet 私有依赖随输出复制（宿主 ALC 从包目录解析）。 -->
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <!-- 包目录 = 输出目录本身：manifest 必须在包根。 -->
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <OutputPath>$(MSBuildThisFileDirectory)..\..\artifacts\package\</OutputPath>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TuneLabDir)' == ''">
+    <TuneLabDir>$(TUNELAB_DIR)</TuneLabDir>
+  </PropertyGroup>
+
+  <Target Name="RequireTuneLabDir" BeforeTargets="ResolveAssemblyReferences"
+          Condition="'$(TuneLabDir)' == ''">
+    <Error Text="未指定 TuneLabDir。请传 -p:TuneLabDir=&quot;&lt;TuneLab 安装目录&gt;&quot; 或设环境变量 TUNELAB_DIR。" />
+  </Target>
+
+  <Target Name="RequireTuneLabDlls" BeforeTargets="ResolveAssemblyReferences"
+          Condition="'$(TuneLabDir)' != '' and !Exists('$(TuneLabDir)\TuneLab.SDK.dll')">
+    <Error Text="TuneLabDir='$(TuneLabDir)' 下找不到 TuneLab.SDK.dll。" />
+  </Target>
+
+  <!-- SDK 契约：宿主提供，不复制、不打包。 -->
+  <ItemGroup Condition="'$(TuneLabDir)' != ''">
+    <Reference Include="TuneLab.Foundation">
+      <HintPath>$(TuneLabDir)\TuneLab.Foundation.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="TuneLab.SDK">
+      <HintPath>$(TuneLabDir)\TuneLab.SDK.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- 包内容：manifest 与各语言的 introduction 必须落在包根。 -->
+  <ItemGroup>
+    <Content Include="manifest.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Introduction.md" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Introduction.zh-CN.md" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- 随包分发的第三方数据与许可：
+       · Sinsy 的音素表与日文歌声模型（日文链路需要；Modified BSD，见 THIRD-PARTY-NOTICES.md）
+       · 许可与署名必须随二进制一起分发（BSD 3-clause 的要求）。
+       目录结构在包里是 sinsy/dic/...、sinsy/voice/...，与 C# 侧的 PackageDir 拼法一致。 -->
+  <ItemGroup>
+    <Content Include="..\..\THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\third_party\sinsy\LICENSE-sinsy.txt" Link="sinsy\LICENSE-sinsy.txt" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\third_party\sinsy\dic\japanese.*.table" Link="sinsy\dic\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\third_party\sinsy\dic\japanese.*.conf" Link="sinsy\dic\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\third_party\sinsy\voice\nitech_jp_song070_f001.htsvoice" Link="sinsy\voice\nitech_jp_song070_f001.htsvoice" CopyToOutputDirectory="PreserveNewest" />
+    <!-- 模型自己的 CC BY 3.0 声明与 README：随模型原样分发（署名 + 许可链接）。 -->
+    <Content Include="..\..\third_party\sinsy\voice\COPYING" Link="sinsy\voice\COPYING" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\third_party\sinsy\voice\README" Link="sinsy\voice\README" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- 原生库（muta_hts / worldline / sinsy）由 tools\build-native.ps1 编好后放进包目录，
+       不参与 dotnet build（它们不是托管引用）。 -->
+
+</Project>
