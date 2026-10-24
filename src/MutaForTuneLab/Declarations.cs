@@ -110,9 +110,12 @@ public static class Declarations
                 (KeyVocoderMode, L.Tr("Vocoder", "声码器")),
                 ComboBoxConfig.Create(new List<ComboBoxItem>
                 {
-                    new(PropertyValue.Create("world"), L.Tr("WORLD (stable)", "WORLD（稳定）")),
+                    // worldline's continuous-noise synthesis (its R1.1 model) is the default:
+                    // the noise is generated in the time domain instead of per frame, so it has
+                    // no frame-boundary modulation. WORLD's classic path stays for A/B.
                     new(PropertyValue.Create("worldline"), L.Tr("worldline (continuous noise)", "worldline（连续噪声）")),
-                }).WithDefault(PropertyValue.Create("world"))
+                    new(PropertyValue.Create("world"), L.Tr("WORLD (classic, A/B)", "WORLD（经典，对照）")),
+                }).WithDefault(PropertyValue.Create("worldline"))
             },
             {
                 (KeyOutputGain, L.Tr("Output gain (dB)", "输出增益（dB）")),
