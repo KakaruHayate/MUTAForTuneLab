@@ -70,6 +70,7 @@ public static class BankRenderer
 
         int consSlots = 0, vowelSlots = 0, missedSlots = 0;
         int phoneCursor = 0;
+        int substitutedSlots = 0;
         var picks = new List<string>();
         var state = new NoteAssemblyState();
         string previousPhone = "sil";
@@ -200,13 +201,33 @@ public static class BankRenderer
             }
             else
             {
-                missedSlots++;
+                // The mapped vowel has no recording behind it -- Mandarin has no bo, no fi and
+                // no ia after b. A hole here plays as silence in the middle of a word, so the
+                // note sings on a plain vowel the bank certainly has instead.
+                var fallback = BankContext.SelectNoteItem(assets.Groups, "a", previousPhone,
+                    rightContext, vowelPlan.TargetCore,
+                    PitchFor(note, bankPitchMode, bankPitchOffset, bankPitchNote), vowelClass);
+                if (fallback is not null)
+                {
+                    substitutedSlots++;
+                    var (fallbackMgc, fallbackBap) = assets.Streams(fallback);
+                    var fallbackBlock = BankAssembler.BuildBlock(fallbackMgc, fallbackBap,
+                        fallback.PrefixFrames, fallback.CoreFrames, fallback.SuffixFrames,
+                        vowelPlan.TargetCore, vowelPlan.LeftExtension, vowelPlan.RightExtension);
+                    BankAssembler.WriteNoteBlock(mgc, bap, fallbackBlock, cursor, vowelPlan);
+                    MarkVoiced(silence, cursor, Math.Min(totalFrames, note.StartFrame + note.Frames));
+                    state = vowelPlan.NextState;
+                }
+                else
+                {
+                    missedSlots++;
+                }
             }
             previousPhone = final;
         }
 
         MutaDiagnostics.Log(
-            $"[MUTA] bank slots {consSlots} consonant, {vowelSlots} vowel, {missedSlots} missed; " +
+            $"[MUTA] bank slots {consSlots} consonant, {vowelSlots} vowel, {missedSlots} missed, {substitutedSlots} substituted; " +
             $"pitch mode {bankPitchMode} offset {bankPitchOffset:F1} fixed {(bankPitchNote > 0 ? bankPitchNote : 0)}; " +
             $"picks {string.Join(" ", picks)}");
         return new BankResult(mgc, bap, silence);

@@ -1,80 +1,189 @@
-﻿namespace MutaForTuneLab.Synthesis;
+namespace MutaForTuneLab.Synthesis;
 
 /// <summary>
-/// Maps a Sinsy phone pair onto phones the MUTA bank can be asked for.
+/// Japanese phones rewritten onto the phones the MUTA bank records.
 ///
-/// Japanese sings through the Chinese bank: Sinsy supplies the labels, durations and F0, and
-/// the bank supplies the timbre. Its phone names differ, so each mora is rewritten before the
-/// assembler sees it. The rules are the ones the prototype validated -- see
-/// docs/muta-ja-zh-phone-map-zh.md, which also records why ordinary e becomes ei and why a
-/// palatalised onset pairs with a different vowel rather than the same one.
+/// Sinsy supplies the labels, durations and F0; the bank supplies the timbre, and its phone
+/// names are Chinese. The table is generated from the bank index itself
+/// (docs/ja-zh-phone-table.md) so every entry either lands on a recorded transition or is
+/// marked as one Mandarin cannot have, in which case the caller still passes the intended
+/// target and the selector scores the nearest recorded unit.
 /// </summary>
 public static class JapanesePhones
 {
-    /// <summary>Onset rewrite: Japanese consonant to the bank's nearest.</summary>
-    static readonly Dictionary<string, string> sOnsets = new(StringComparer.Ordinal)
+    /// <summary>Sinsy phone pair to (bank onset, bank final); null onset means a bare vowel.</summary>
+    static readonly Dictionary<string, (string? Onset, string Final)> sMap = new(StringComparer.Ordinal)
     {
-        ["ky"] = "k", ["gy"] = "g", ["sh"] = "x", ["ch"] = "q", ["j"] = "j",
-        ["ny"] = "n", ["hy"] = "h", ["by"] = "b", ["py"] = "p", ["my"] = "m",
-        ["ry"] = "r", ["ty"] = "t", ["dy"] = "d", ["ts"] = "c",
-        ["b"] = "b", ["d"] = "d", ["f"] = "f", ["g"] = "g", ["h"] = "h",
-        ["k"] = "k", ["m"] = "m", ["n"] = "n", ["p"] = "p", ["r"] = "r",
-        ["s"] = "s", ["t"] = "t", ["w"] = "w", ["y"] = "y", ["z"] = "z",
-    };
-
-    /// <summary>Vowel rewrite when the onset is not palatalised.</summary>
-    static readonly Dictionary<string, string> sPlainVowels = new(StringComparer.Ordinal)
-    {
-        ["a"] = "a", ["i"] = "i", ["u"] = "u", ["e"] = "ei", ["o"] = "o", ["v"] = "v",
-    };
-
-    /// <summary>Vowel rewrite after a palatalised onset: the bank's nearest vowel colour.</summary>
-    static readonly Dictionary<string, string> sPalatalizedVowels = new(StringComparer.Ordinal)
-    {
-        ["a"] = "ia", ["i"] = "i", ["u"] = "v", ["e"] = "ie", ["o"] = "iu",
-    };
-
-    static readonly HashSet<string> sPalatalized = new(StringComparer.Ordinal)
-    {
-        "ky", "gy", "sh", "ch", "j", "ny", "hy", "by", "py", "my", "ry", "ty", "dy",
+        ["N"] = (null, "en"),
+        ["a"] = (null, "a"),
+        ["i"] = (null, "i"),
+        ["u"] = (null, "u"),
+        ["e"] = (null, "ie"),
+        ["o"] = (null, "o"),
+        ["ka"] = ("k", "a"),
+        ["ku"] = ("k", "u"),
+        ["ke"] = ("k", "e"),
+        ["ko"] = ("k", "uo"),
+        ["ga"] = ("g", "a"),
+        ["gu"] = ("g", "u"),
+        ["ge"] = ("g", "ei"),
+        ["go"] = ("g", "uo"),
+        ["ha"] = ("h", "a"),
+        ["hu"] = ("h", "u"),
+        ["he"] = ("h", "ei"),
+        ["ho"] = ("h", "uo"),
+        ["ba"] = ("b", "a"),
+        ["bi"] = ("b", "i"),
+        ["bu"] = ("b", "u"),
+        ["be"] = ("b", "ie"),
+        ["bo"] = ("b", "o"),   // hard-join
+        ["pa"] = ("p", "a"),
+        ["pi"] = ("p", "i"),
+        ["pu"] = ("p", "u"),
+        ["pe"] = ("p", "ie"),
+        ["po"] = ("p", "o"),
+        ["ma"] = ("m", "a"),
+        ["mi"] = ("m", "i"),
+        ["mu"] = ("m", "u"),
+        ["me"] = ("m", "ie"),
+        ["mo"] = ("m", "o"),
+        ["na"] = ("n", "a"),
+        ["ni"] = ("n", "i"),
+        ["nu"] = ("n", "u"),
+        ["ne"] = ("n", "ie"),
+        ["no"] = ("n", "uo"),
+        ["fa"] = ("f", "a"),
+        ["fi"] = ("f", "i"),   // hard-join
+        ["fu"] = ("f", "u"),
+        ["fe"] = ("f", "ei"),
+        ["fo"] = ("f", "o"),
+        ["sa"] = ("s", "a"),
+        ["si"] = ("s", "if"),
+        ["su"] = ("s", "u"),
+        ["se"] = ("s", "e"),
+        ["so"] = ("s", "uo"),
+        ["za"] = ("z", "a"),
+        ["zi"] = ("z", "if"),
+        ["zu"] = ("z", "u"),
+        ["ze"] = ("z", "ei"),
+        ["zo"] = ("z", "uo"),
+        ["ta"] = ("t", "a"),
+        ["ti"] = ("t", "i"),
+        ["tu"] = ("t", "u"),
+        ["te"] = ("t", "ie"),
+        ["to"] = ("t", "uo"),
+        ["da"] = ("d", "a"),
+        ["di"] = ("d", "i"),
+        ["du"] = ("d", "u"),
+        ["de"] = ("d", "ie"),
+        ["do"] = ("d", "uo"),
+        ["ra"] = ("l", "a"),
+        ["ri"] = ("l", "i"),
+        ["ru"] = ("l", "u"),
+        ["re"] = ("l", "ie"),
+        ["ro"] = ("l", "uo"),
+        ["tsa"] = ("c", "a"),
+        ["tsi"] = ("c", "if"),
+        ["tsu"] = ("c", "u"),
+        ["tse"] = ("c", "e"),
+        ["tso"] = ("c", "uo"),
+        ["cha"] = ("q", "ia"),
+        ["chi"] = ("q", "i"),
+        ["chu"] = ("q", "iu"),
+        ["che"] = ("q", "ie"),
+        ["cho"] = ("q", "iao"),
+        ["sha"] = ("x", "ia"),
+        ["shi"] = ("x", "i"),
+        ["shu"] = ("x", "iu"),
+        ["she"] = ("x", "ie"),
+        ["sho"] = ("x", "iao"),
+        ["ja"] = ("j", "ia"),
+        ["ji"] = ("j", "i"),
+        ["ju"] = ("j", "iu"),
+        ["je"] = ("j", "ie"),
+        ["jo"] = ("j", "iao"),
+        ["kya"] = ("q", "ia"),
+        ["kyi"] = ("q", "i"),
+        ["kyu"] = ("q", "iu"),
+        ["kye"] = ("q", "ie"),
+        ["kyo"] = ("q", "iao"),
+        ["gya"] = ("j", "ia"),
+        ["gyi"] = ("j", "i"),
+        ["gyu"] = ("j", "iu"),
+        ["gye"] = ("j", "ie"),
+        ["gyo"] = ("j", "iao"),
+        ["hya"] = ("x", "ia"),
+        ["hyi"] = ("x", "i"),
+        ["hyu"] = ("x", "iu"),
+        ["hye"] = ("x", "ie"),
+        ["hyo"] = ("x", "iao"),
+        ["nya"] = ("n", "ia"),   // hard-join
+        ["nyi"] = ("n", "i"),
+        ["nyu"] = ("n", "iu"),
+        ["nye"] = ("n", "ie"),
+        ["nyo"] = ("n", "iao"),
+        ["mya"] = ("m", "ia"),   // hard-join
+        ["myi"] = ("m", "i"),
+        ["myu"] = ("m", "iu"),
+        ["mye"] = ("m", "ie"),
+        ["myo"] = ("m", "iao"),
+        ["bya"] = ("b", "ia"),   // hard-join
+        ["byi"] = ("b", "i"),
+        ["byu"] = ("b", "iu"),   // hard-join
+        ["bye"] = ("b", "ie"),
+        ["byo"] = ("b", "iao"),
+        ["pya"] = ("p", "ia"),   // hard-join
+        ["pyi"] = ("p", "i"),
+        ["pyu"] = ("p", "iu"),   // hard-join
+        ["pye"] = ("p", "ie"),
+        ["pyo"] = ("p", "iao"),
+        ["rya"] = ("l", "ia"),
+        ["ryi"] = ("l", "i"),
+        ["ryu"] = ("l", "iu"),
+        ["rye"] = ("l", "ie"),
+        ["ryo"] = ("l", "iao"),
+        ["tya"] = ("q", "ia"),
+        ["tyi"] = ("q", "i"),
+        ["tyu"] = ("q", "iu"),
+        ["tye"] = ("q", "ie"),
+        ["tyo"] = ("q", "iao"),
+        ["dya"] = ("j", "ia"),
+        ["dyi"] = ("j", "i"),
+        ["dyu"] = ("j", "iu"),
+        ["dye"] = ("j", "ie"),
+        ["dyo"] = ("j", "iao"),
+        ["ya"] = ("y", "ia"),
+        ["yu"] = ("y", "iu"),
+        ["yo"] = ("y", "iao"),
+        ["ye"] = ("y", "ie"),
+        ["wa"] = ("w", "ua"),
+        ["wo"] = ("w", "uo"),
+        ["va"] = ("w", "ua"),
+        ["vi"] = ("w", "i"),   // hard-join
+        ["vu"] = ("w", "u"),
+        ["ve"] = ("w", "ui"),
+        ["vo"] = ("w", "uo"),
+        ["ki"] = ("q", "i"),
+        ["gi"] = ("j", "i"),
+        ["hi"] = ("x", "i"),
     };
 
     /// <summary>
-    /// Rewrites one mora's phones. Returns false when the pair cannot be sung from the bank,
-    /// which the caller answers by skipping the note rather than inventing a sound.
+    /// Rewrites one mora. The caller passes the onset and the vowel it got from the kana table;
+    /// the pair is looked up whole because the mapping is not separable -- a palatalised onset
+    /// changes the vowel it takes.
     /// </summary>
     public static bool TryMap(string? onset, string vowel, out string? bankOnset, out string bankFinal)
     {
-        bankOnset = null;
-        bankFinal = "a";
-
-        string vowelKey = vowel.ToLowerInvariant();
-        if (vowelKey.Length == 0 || vowelKey == "n" || vowelKey == "m")
+        string key = (onset ?? string.Empty) + vowel;
+        if (sMap.TryGetValue(key, out var mapped))
         {
-            // A syllabic nasal: the bank's own nasal coda is the closest thing it has.
-            bankFinal = "n";
+            bankOnset = mapped.Onset;
+            bankFinal = mapped.Final;
             return true;
         }
-
-        string? mappedVowel;
-        if (onset is { Length: > 0 } rawOnset)
-        {
-            string onsetKey = rawOnset.ToLowerInvariant();
-            if (!sOnsets.TryGetValue(onsetKey, out string? mappedOnset))
-                return false;
-            bankOnset = mappedOnset;
-            mappedVowel = sPalatalized.Contains(onsetKey)
-                ? sPalatalizedVowels.GetValueOrDefault(vowelKey)
-                : sPlainVowels.GetValueOrDefault(vowelKey);
-        }
-        else
-        {
-            mappedVowel = sPlainVowels.GetValueOrDefault(vowelKey);
-        }
-
-        if (mappedVowel is null)
-            return false;
-        bankFinal = mappedVowel;
-        return true;
+        bankOnset = onset;
+        bankFinal = vowel;
+        return false;
     }
 }
