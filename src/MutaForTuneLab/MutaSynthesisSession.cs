@@ -38,6 +38,7 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
     readonly string? mR2Directory;
     readonly string mMelModelPath;
     readonly PinyinDictionary? mDictionary;
+    readonly KanaTable? mKana;
 
     readonly ActionEvent mStatusChanged = new();
     readonly ActionEvent mPhonemesChanged = new();
@@ -76,6 +77,9 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
         mMelModelPath = melModelPath;
         // Lyrics are pinyin for the Chinese chain; the tables live in the MUTA install.
         mDictionary = PinyinDictionary.TryLoadForVoice(voice.Directory);
+        // Japanese morae come from the table shipped beside the Sinsy dictionaries.
+        mKana = KanaTable.TryLoad(System.IO.Path.Combine(
+            Native.NativeLibraries.PackageDirectory, "sinsy", "dic"));
     }
 
     public string DefaultLyric => "a";
@@ -383,6 +387,9 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
 
         if (mDictionary?.SyllableFor(lyric) is { } syllable)
             return syllable;
+
+        if (KanaTable.IsKana(lyric) && mKana?.PhonemesFor(lyric) is { } phones)
+            return phones;
 
         return "a";
     }
