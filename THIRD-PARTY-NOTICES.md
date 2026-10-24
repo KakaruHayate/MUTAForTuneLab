@@ -271,3 +271,30 @@ Reproduced from `sinsy/voice/COPYING`, the file shipped by the official distribu
 # ----------------------------------------------------------------- #
 
 ```
+
+## ONNX Runtime
+
+Bundled as `onnxruntime.dll`, `Microsoft.ML.OnnxRuntime.dll` and
+`System.Numerics.Tensors.dll`; used only by the optional WORLDLINE R2 backend.
+
+Copyright (c) Microsoft Corporation. All rights reserved.
+Licensed under the MIT License.
+
+Source: https://github.com/microsoft/onnxruntime
+
+## mel.onnx
+
+Bundled as `mel.onnx`. Maps WORLD features (F0, spectral envelope, aperiodicity) to a
+log mel spectrogram for the WORLDLINE R2 backend.
+
+From OpenUtau (`OpenUtau.Core/Classic/Data/mel.onnx`).
+Copyright (c) OpenUtau contributors. Licensed under the MIT License.
+
+Source: https://github.com/stakira/OpenUtau
+
+## WORLDLINE R2 vocoder packages are not bundled
+
+The R2 backend runs a vocoder the user installs. No model weights are distributed with
+this plugin; the plugin only reads a folder the user points it at. The reference package
+(`pc_nsf_hifigan_44.1k_hop512_128bin_2025.02`) is published by OpenVPI under
+CC BY-NC-SA 4.0, which is not a licence this plugin can redistribute under.

@@ -1,0 +1,25 @@
+{
+  "frames": 40,
+  "target_frames": 17,
+  "mel_bins": 128,
+  "sample_rate": 44100,
+  "hop_size": 512,
+  "fft_size": 2048,
+  "target_frame_ms": 11.609977324263038,
+  "samples": 8704,
+  "padded_frames": 32,
+  "mel_inputs": [
+    "f0",
+    "sp_env",
+    "ap"
+  ],
+  "vocoder_inputs": [
+    "mel",
+    "f0"
+  ],
+  "mel_shape": [
+    1,
+    32,
+    128
+  ]
+}

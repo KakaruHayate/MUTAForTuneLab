@@ -56,6 +56,8 @@
   <!-- 包内容：manifest 与各语言的 introduction 必须落在包根。 -->
   <ItemGroup>
     <Content Include="manifest.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- mel.onnx: WORLD features -> log mel for the R2 backend (OpenUtau, MIT). -->
+    <Content Include="..\..\third_party\openutau\mel.onnx" Link="mel.onnx" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Introduction.md" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Introduction.zh-CN.md" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
@@ -73,6 +75,12 @@
     <!-- 模型自己的 CC BY 3.0 声明与 README：随模型原样分发（署名 + 许可链接）。 -->
     <Content Include="..\..\third_party\sinsy\voice\COPYING" Link="sinsy\voice\COPYING" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\third_party\sinsy\voice\README" Link="sinsy\voice\README" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- 可选后端：WORLDLINE R2 跑一个用户自装的外部声码器。ONNX Runtime 随包分发（MIT），
+       模型本身不随包（那是用户与上游之间的事）。 -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.23.0" />
   </ItemGroup>
 
   <!-- 原生库（muta_hts / worldline / sinsy）由 tools\build-native.ps1 编好后放进包目录，

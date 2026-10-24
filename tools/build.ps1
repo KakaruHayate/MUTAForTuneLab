@@ -57,6 +57,9 @@ Write-Host "project    = $project"
 if ($LASTEXITCODE -ne 0) { throw "dotnet build failed ($LASTEXITCODE)" }
 
 $package = Join-Path $repo "artifacts\package"
+# Only win-x64 native assets are loadable; drop whatever else the SDK staged.
+$stagedRuntimes = Join-Path $package "runtimes"
+if (Test-Path $stagedRuntimes) { Remove-Item $stagedRuntimes -Recurse -Force }
 Write-Host ""
 Write-Host "package: $package"
 Get-ChildItem $package -File | Sort-Object Name |

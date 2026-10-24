@@ -88,3 +88,28 @@ Copy-Item -LiteralPath $dll.FullName -Destination (Join-Path $package "muta_hts.
 
 Write-Host ""
 Write-Host ("wrote {0} ({1:N0} bytes)" -f (Join-Path $package "muta_hts.dll"), $dll.Length)
+
+# --- 5. worldline: no patching needed, the vendored trees are already final ---
+Write-Host ""
+Write-Host "building worldline..."
+$wlBuild = Join-Path $scratch "worldline_build"
+$wlArgs = @(
+    "-S", (Join-Path $repo "src\native\worldline"),
+    "-B", $wlBuild,
+    "-G", $generator,
+    ("-DWORLDLINE_SRC=" + (Join-Path $repo "third_party\worldline")),
+    ("-DWORLD_SRC=" + (Join-Path $repo "third_party\world"))
+)
+if ($generator -like "Visual Studio*") { $wlArgs += @("-A", "x64") }
+
+& cmake @wlArgs
+if ($LASTEXITCODE -ne 0) { throw "worldline configure failed" }
+& cmake --build $wlBuild --config $Configuration
+if ($LASTEXITCODE -ne 0) { throw "worldline build failed" }
+
+$wlOut = Join-Path $wlBuild $Configuration
+if (-not (Test-Path $wlOut)) { $wlOut = $wlBuild }
+$wlDll = Get-ChildItem $wlOut -Filter "worldline.dll" -Recurse | Select-Object -First 1
+if (-not $wlDll) { throw "worldline.dll not found under $wlOut" }
+Copy-Item -LiteralPath $wlDll.FullName -Destination (Join-Path $package "worldline.dll") -Force
+Write-Host ("wrote {0} ({1:N0} bytes)" -f (Join-Path $package "worldline.dll"), $wlDll.Length)
