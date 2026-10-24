@@ -1,0 +1,34 @@
+{
+  "name": "rest",
+  "total": 360,
+  "notes": [
+    {
+      "start_frame": 0,
+      "frames": 40,
+      "midi": 0,
+      "rest": true
+    },
+    {
+      "start_frame": 40,
+      "frames": 60,
+      "midi": 69
+    },
+    {
+      "start_frame": 100,
+      "frames": 100,
+      "midi": 0,
+      "rest": true
+    },
+    {
+      "start_frame": 200,
+      "frames": 60,
+      "midi": 69
+    },
+    {
+      "start_frame": 260,
+      "frames": 100,
+      "midi": 0,
+      "rest": true
+    }
+  ]
+}

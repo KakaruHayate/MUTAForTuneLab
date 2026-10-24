@@ -1,0 +1,23 @@
+{
+  "name": "long",
+  "total": 500,
+  "notes": [
+    {
+      "start_frame": 0,
+      "frames": 50,
+      "midi": 0,
+      "rest": true
+    },
+    {
+      "start_frame": 50,
+      "frames": 400,
+      "midi": 60
+    },
+    {
+      "start_frame": 450,
+      "frames": 50,
+      "midi": 0,
+      "rest": true
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- F0 regression probe: replays the fixtures the Python reference generated and
+       reports the largest deviation. Links the mechanism source, so it needs neither
+       the TuneLab SDK nor a running host. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>F0Probe</RootNamespace>
+    <AssemblyName>F0Probe</AssemblyName>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="..\..\src\MutaForTuneLab\Synthesis\F0Mechanism.cs" Link="F0Mechanism.cs" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,23 @@
+{
+  "name": "single",
+  "total": 300,
+  "notes": [
+    {
+      "start_frame": 0,
+      "frames": 150,
+      "midi": 0,
+      "rest": true
+    },
+    {
+      "start_frame": 150,
+      "frames": 40,
+      "midi": 72
+    },
+    {
+      "start_frame": 190,
+      "frames": 110,
+      "midi": 0,
+      "rest": true
+    }
+  ]
+}

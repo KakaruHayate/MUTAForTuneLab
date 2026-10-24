@@ -1,0 +1,44 @@
+{
+  "name": "short",
+  "total": 240,
+  "notes": [
+    {
+      "start_frame": 0,
+      "frames": 40,
+      "midi": 0,
+      "rest": true
+    },
+    {
+      "start_frame": 40,
+      "frames": 10,
+      "midi": 72
+    },
+    {
+      "start_frame": 60,
+      "frames": 10,
+      "midi": 74
+    },
+    {
+      "start_frame": 80,
+      "frames": 10,
+      "midi": 76
+    },
+    {
+      "start_frame": 100,
+      "frames": 12,
+      "midi": 79
+    },
+    {
+      "start_frame": 112,
+      "frames": 40,
+      "midi": 0,
+      "rest": true
+    },
+    {
+      "start_frame": 152,
+      "frames": 88,
+      "midi": 0,
+      "rest": true
+    }
+  ]
+}
