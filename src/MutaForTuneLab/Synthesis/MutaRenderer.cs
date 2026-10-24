@@ -116,8 +116,11 @@ public static class MutaRenderer
             double sum = 0.0; int voiced = 0;
             for (int f = 0; f < spectrumMgc.Length; f++)
                 if (!silence[f]) { sum += spectrumMgc[f][0]; voiced++; }
+            double modelSum = 0.0;
+            for (int f = 0; f < mgc.Length; f++) modelSum += mgc[f][0];
             TuneLabContext.Global.GetLogger().Debug(
-                $"[MUTA] frames {spectrumMgc.Length} voiced {voiced} mean c0 {(voiced > 0 ? sum / voiced : 0):F3} source {(bank is null ? "model" : "bank")}");
+                $"[MUTA] frames {spectrumMgc.Length} voiced {voiced} c0 {(voiced > 0 ? sum / voiced : 0):F3} " +
+                $"model c0 {(mgc.Length > 0 ? modelSum / mgc.Length : 0):F3} source {(bank is null ? "model" : "bank")}");
         }
 
         // Bend the contour onto the notes the user actually wrote.
