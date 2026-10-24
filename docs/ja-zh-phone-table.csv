@@ -144,9 +144,9 @@ ye,(none),e,y,ie,proxy,zero-initial
 wa,(none),a,w,ua,proxy,zero-initial
 wo,(none),o,w,uo,proxy,zero-initial
 va,v,a,w,ua,proxy,foreign
-vi,v,i,w,u,proxy,foreign
+vi,v,i,y,i,proxy,foreign
 vu,v,u,w,u,proxy,foreign
-ve,v,e,w,uo,proxy,foreign
+ve,v,e,w,ui,proxy,foreign
 vo,v,o,w,uo,proxy,foreign
 ki,k,i,q,i,proxy,palatalized
 gi,g,i,j,i,proxy,palatalized

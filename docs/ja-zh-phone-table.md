@@ -171,9 +171,9 @@
 | wa | zero-initial | w | ua | proxy |
 | wo | zero-initial | w | uo | proxy |
 | va | foreign | w | ua | proxy |
-| vi | foreign | w | u | proxy |
+| vi | foreign | y | i | proxy |
 | vu | foreign | w | u | proxy |
-| ve | foreign | w | uo | proxy |
+| ve | foreign | w | ui | proxy |
 | vo | foreign | w | uo | proxy |
 | ki | palatalized | q | i | proxy |
 | gi | palatalized | j | i | proxy |
