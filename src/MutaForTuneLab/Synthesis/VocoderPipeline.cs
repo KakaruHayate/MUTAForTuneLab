@@ -44,7 +44,7 @@ public static class VocoderPipeline
     public static VocoderOutput Render(
         double[][] mgc, double[][] bap, double[] f0, bool[] silence,
         double alpha, VocoderExpression expression, VocoderMode mode,
-        R2Vocoder? r2, out VocoderMode used, double[]? spectralGain = null)
+        R2Vocoder? r2, out VocoderMode used)
     {
         int frames = f0.Length;
         if (frames == 0 || mgc.Length != frames || bap.Length != frames)
@@ -55,7 +55,7 @@ public static class VocoderPipeline
 
         if (mode == VocoderMode.WorldlineR2 && r2 is not null)
         {
-            var spGrid = ApplyGain(Power(mgc, alpha, silence), spectralGain);
+            var spGrid = Power(mgc, alpha, silence);
             var apGrid = Aperiodicity(bap);
             used = mode;
             // R2 builds its own spectra: it does the grid conversion itself.
@@ -63,7 +63,7 @@ public static class VocoderPipeline
         }
 
         used = mode == VocoderMode.WorldlineR2 ? VocoderMode.WorldlineR11 : mode;
-        var sp = ApplyGain(Power(mgc, alpha, silence), spectralGain);
+        var sp = Power(mgc, alpha, silence);
         var ap = Aperiodicity(bap);
         var settings = new VocoderSettings
         {
