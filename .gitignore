@@ -6,3 +6,5 @@ artifacts/
 .vs/
 TestResults/
 build/
+__pycache__/
+*.pyc
