@@ -626,14 +626,17 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
         // Japanese first: its phones come from the kana table, not from an inventory.
         if (mPhones is null && mKana is not null)
         {
+            // The table writes a mora as its phones separated by spaces ("k i" for き), and a
+            // space inside a phone name makes the label unsingable -- the model takes the
+            // process down. Joining them gives ki, kyo: the shapes the splitter expects.
             if (mKana.PhonemesFor(cleaned) is { } fromKana)
-                return fromKana;
+                return fromKana.Replace(" ", string.Empty);
             if (cleaned.All(c => c < 128))
             {
                 string romaji = new string(cleaned.Where(char.IsLetter).ToArray()).ToLowerInvariant();
                 if (romaji.Length > 0 && mKana.KanaFor(romaji) is { } kana
                     && mKana.PhonemesFor(kana) is { } fromRomaji)
-                    return fromRomaji;
+                    return fromRomaji.Replace(" ", string.Empty);
             }
             return FallbackPhone(lyric);
         }

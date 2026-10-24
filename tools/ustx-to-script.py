@@ -90,7 +90,7 @@ def load_project(path: Path) -> dict:
     return yaml.safe_load(path.read_text(encoding="utf-8-sig"))
 
 def build_script(path: Path, voice: str, window: tuple[float, float] | None = None,
-                 only_track: int | None = None) -> str:
+                 only_track: int | None = None, for_script: bool = False) -> str:
     ustx = load_project(path)
     if not isinstance(ustx, dict):
         raise SystemExit(f"{path}: not a USTX project")
@@ -109,13 +109,19 @@ def build_script(path: Path, voice: str, window: tuple[float, float] | None = No
     if not tracks:
         raise SystemExit(f"{path}: no track with notes")
 
-    lines = [
-        f"// generated from {path.name} (ppq {ppq}, {len(tracks)} vocal track(s))",
-        "const voices = sandbox.voices();",
-        f"const VOICE = voices.find(v => v.id === '{voice}') || voices[1] || voices[0];",
-        "const p = tl.currentProject();",
-        "let sung = 0;",
-    ]
+    lines = [f"// generated from {path.name} (ppq {ppq}, {len(tracks)} vocal track(s))"]
+    if for_script:
+        # `script run` has no sandbox; the source is named directly and the export drives
+        # synthesis, so nothing here synthesizes.
+        lines.append(f"const VOICE = {{ type: 'MUTA', id: '{voice}' }};")
+    else:
+        lines += [
+            "const voices = sandbox.voices();",
+            f"const VOICE = voices.find(v => v.id === '{voice}') || voices[1] || voices[0];",
+        ]
+    lines.append("const p = tl.currentProject();")
+    if not for_script:
+        lines.append("let sung = 0;")
 
     for index, track in enumerate(tracks):
         if only_track is not None and index != only_track:
@@ -144,12 +150,16 @@ def build_script(path: Path, voice: str, window: tuple[float, float] | None = No
             f"  part{index}.addNote({{ pos: +f[0], dur: +f[1], pitch: +f[2],"
             " lyric: String.fromCharCode(parseInt(f[3], 16)) });",
             "}",
-            f"print('{name}: ' + JSON.stringify(sandbox.synthesize(part{index}, "
-            "{ timeoutMs: 1800000, maxDispatches: 900 })));",
-            "sung += 1;",
         ]
+        if not for_script:
+            lines += [
+                f"print('{name}: ' + JSON.stringify(sandbox.synthesize(part{index}, "
+                "{ timeoutMs: 1800000, maxDispatches: 900 })));",
+                "sung += 1;",
+            ]
 
-    lines.append("print('tracks sung: ' + sung);")
+    if not for_script:
+        lines.append("print('tracks sung: ' + sung);")
     return "\n".join(lines) + "\n"
 
 
@@ -174,7 +184,7 @@ def main() -> None:
         raise SystemExit(
             "usage: ustx-to-script.py <project.ustx> [--voice yanxi|sinsy-jp] [--window from to]"
         )
-    sys.stdout.write(build_script(Path(args[0]), voice, window, only_track))
+    sys.stdout.write(build_script(Path(args[0]), voice, window, only_track, "--script" in args))
 
 
 if __name__ == "__main__":

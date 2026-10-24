@@ -28,6 +28,35 @@
 
 namespace
 {
+bool g_converterFailed = false;
+
+/// One converter for the whole process.
+///
+/// It owns the language tables, which cost megabytes to load and never change. Building one
+/// per call leaked them, and a long project walked into the resulting pressure until the
+/// native engine died -- roughly ninety blocks in, at the same point every time.
+sinsy::Converter& SharedConverter(const char* dicDir)
+{
+   static sinsy::Converter* shared = nullptr;
+   static sinsy::Converter fallback;
+
+   if (shared == nullptr && !g_converterFailed)
+   {
+      auto* made = new sinsy::Converter();
+      // The flag is a letter per language, lowercase; the tables sit beside it.
+      if (made->setLanguages("j", dicDir))
+      {
+         shared = made;
+      }
+      else
+      {
+         g_converterFailed = true;
+         delete made;
+      }
+   }
+   return shared != nullptr ? *shared : fallback;
+}
+
 /// Copies the joined labels into the caller's buffer, or just reports the size.
 int CopyOut(const std::string& text, char* buffer, int bufferSize)
 {
@@ -91,9 +120,8 @@ MUTA_SINSY_API int muta_sinsy_labels(
       sinsy::ScoreDoctor score;
       score << reader;
 
-      sinsy::Converter converter;
-      // The flag is a letter per language, lowercase; the tables are looked up beside it.
-      if (!converter.setLanguages("j", dicDir))
+      sinsy::Converter& converter = SharedConverter(dicDir);
+      if (g_converterFailed)
       {
          return -4;
       }

@@ -121,13 +121,17 @@ public static class MutaRenderer
             var scoreNotes = new List<ScoreNote>(notes.Count);
             foreach (var note in notes)
             {
+                // The phone, not the lyric: the session has already checked it against the
+                // kana table, so a lyric the voice cannot pronounce has become a vowel by now.
+                // Handing Sinsy the raw lyric instead let 'w' through, and a score line it
+                // cannot read produced labels that killed the native engine.
                 scoreNotes.Add(new ScoreNote(
                     note.StartFrame * FrameSeconds, note.Frames * FrameSeconds, note.Midi,
-                    MutaSinsy.ToKana(note.Lyric)));
+                    MutaSinsy.ToKana(note.Phone)));
             }
             MutaDiagnostics.Log(
                 $"[MUTA] jp note0 phone=[{notes[0].Phone}] lyric=[{notes[0].Lyric}] " +
-                $"kana=[{MutaSinsy.ToKana(notes[0].Lyric)}] notes={notes.Count}");
+                $"kana=[{MutaSinsy.ToKana(notes[0].Phone)}] notes={notes.Count}");
             japaneseLabels = MutaSinsy.Labels(scoreNotes, request.TotalFrames * FrameSeconds,
                 MutaSinsy.DictionaryDirectory);
             if (japaneseLabels is null)
