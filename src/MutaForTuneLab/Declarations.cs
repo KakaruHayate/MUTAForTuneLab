@@ -110,10 +110,13 @@ public static class Declarations
                 (KeyVocoderMode, L.Tr("Vocoder", "声码器")),
                 ComboBoxConfig.Create(new List<ComboBoxItem>
                 {
-                    // worldline's continuous-noise synthesis (its R1.1 model) is the default:
-                    // the noise is generated in the time domain instead of per frame, so it has
-                    // no frame-boundary modulation. WORLD's classic path stays for A/B.
-                    new(PropertyValue.Create("worldline"), L.Tr("worldline (continuous noise)", "worldline（连续噪声）")),
+                    // R1.1 (continuous noise) is the default: its noise is generated in the time
+                    // domain instead of per frame, so there is no frame-boundary modulation, and
+                    // it needs nothing installed.
+                    new(PropertyValue.Create("worldline"), L.Tr("worldline R1.1 (built in)", "worldline R1.1（内置）")),
+                    // R2 runs an external neural vocoder the user installs themselves; the package
+                    // is not redistributable, so it is never bundled. Needs its folder in settings.
+                    new(PropertyValue.Create("r2"), L.Tr("worldline R2 (external vocoder)", "worldline R2（外部声码器）")),
                     new(PropertyValue.Create("world"), L.Tr("WORLD (classic, A/B)", "WORLD（经典，对照）")),
                 }).WithDefault(PropertyValue.Create("worldline"))
             },

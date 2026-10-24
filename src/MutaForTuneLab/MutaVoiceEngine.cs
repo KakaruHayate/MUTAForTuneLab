@@ -20,6 +20,7 @@ namespace MutaForTuneLab;
 public sealed class MutaVoiceEngine : IVoiceSynthesisEngine, IExtensionSettings
 {
     const string KeyVoiceDirs = "voice_dirs";
+    const string KeyR2VocoderDir = "r2_vocoder_dir";
 
     readonly OrderedMap<string, VoiceSourceInfo> mInfos = new();
     IReadOnlyList<VoiceSourceLayoutItem> mLayout = [];
@@ -77,7 +78,7 @@ public sealed class MutaVoiceEngine : IVoiceSynthesisEngine, IExtensionSettings
         return map;
     }
 
-    // —— 扩展设置：音源目录 ——
+    // —— 扩展设置：音源目录 / R2 声码器目录 ——
 
     public ObjectConfig GetSettingsConfig(IExtensionSettingsContext context)
     {
@@ -86,6 +87,10 @@ public sealed class MutaVoiceEngine : IVoiceSynthesisEngine, IExtensionSettings
             {
                 (KeyVoiceDirs, L.Tr("Extra voice directories", "额外音源目录")),
                 DirListConfig(context.Settings, KeyVoiceDirs)
+            },
+            {
+                (KeyR2VocoderDir, L.Tr("R2 vocoder folder (pc_nsf_hifigan_…)", "R2 声码器目录（pc_nsf_hifigan_…）")),
+                TextBoxConfig.Create()
             },
         };
         return ObjectConfig.Create(properties);
