@@ -80,7 +80,31 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
         // Japanese morae come from the table shipped beside the Sinsy dictionaries.
         mKana = KanaTable.TryLoad(System.IO.Path.Combine(
             Native.NativeLibraries.PackageDirectory, "sinsy", "dic"));
+
+        // A block re-renders when its notes change. These make it re-render when a curve or
+        // a part property changes too, because those change the audio just as much.
+        foreach (var pair in context.Automations)
+        {
+            if (pair.Value is null)
+                continue;
+            pair.Value.RangeModified.Subscribe((_, _) => mCurveVersion++);
+        }
+
+        // Part properties change the render as well, and the host reports those per field.
+        var settings = context.PartProperties;
+        if (settings is not null)
+        {
+            settings.StringField(Declarations.KeyVocoderMode, "worldline").Modified.Subscribe(() => mCurveVersion++);
+            settings.StringField(Declarations.KeyBankPitchMode, "auto").Modified.Subscribe(() => mCurveVersion++);
+            settings.DoubleField(Declarations.KeyPhonemeSpeed, 1.0).Modified.Subscribe(() => mCurveVersion++);
+            settings.DoubleField(Declarations.KeyOutputGain, 0.0).Modified.Subscribe(() => mCurveVersion++);
+            settings.DoubleField(Declarations.KeyBankPitchOffset, 0.0).Modified.Subscribe(() => mCurveVersion++);
+            settings.DoubleField(Declarations.KeyBankPitchNote, 0.0).Modified.Subscribe(() => mCurveVersion++);
+        }
     }
+
+    /// <summary>Bumped when something other than the notes changes what the render produces.</summary>
+    int mCurveVersion;
 
     public string DefaultLyric => "a";
 
@@ -274,9 +298,14 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
         => $"{(notes.Count > 0 ? notes[0].Id : "")}:{notes.Count}";
 
     /// <summary>What the block's audio depends on. Any change here invalidates it.</summary>
-    static string SignatureOf(IReadOnlyList<IVoiceSynthesisNote> notes)
+    string SignatureOf(IReadOnlyList<IVoiceSynthesisNote> notes)
     {
         var builder = new System.Text.StringBuilder();
+
+        // A bump of the curve version means an automation moved, which changes the audio of
+        // every block even though no note did.
+        builder.Append(mCurveVersion).Append(';');
+
         foreach (var note in notes)
         {
             builder.Append(note.Id).Append('|')
@@ -308,12 +337,35 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
         }
 
         int totalFrames = Math.Max(1, (int)Math.Round((block.EndTime - block.StartTime) / frameSeconds));
+
+        // Curves are read from the snapshot, never from the live view, and evaluated at the
+        // frame times of this block.
+        var positions = new double[totalFrames];
+        for (int i = 0; i < totalFrames; i++)
+            positions[i] = block.StartTime + i * frameSeconds;
+
+        var properties = snapshot.PartProperties;
         var request = new RenderRequest
         {
             Voice = mVoice,
             Notes = notes,
             TotalFrames = totalFrames,
-            Mode = VocoderMode.WorldlineR11,
+            Mode = VocoderPipeline.ParseMode(properties.GetString(Declarations.KeyVocoderMode, "worldline")),
+            Speed = properties.GetDouble(Declarations.KeyPhonemeSpeed, 1.0),
+            GainDecibels = properties.GetDouble(Declarations.KeyOutputGain, 0.0),
+            BankPitchMode = properties.GetString(Declarations.KeyBankPitchMode, "auto"),
+            BankPitchOffset = properties.GetDouble(Declarations.KeyBankPitchOffset, 0.0),
+            BankPitchNote = (int)properties.GetDouble(Declarations.KeyBankPitchNote, 0.0),
+            Energy = Curve(snapshot, Declarations.KeyEnergy, positions),
+            Timbre = Curve(snapshot, Declarations.KeyTimbre, positions),
+            Husky = Curve(snapshot, Declarations.KeyHusky, positions),
+            Expression = new VocoderExpression
+            {
+                Gender = Curve(snapshot, Declarations.KeyGender, positions),
+                Tension = Curve(snapshot, Declarations.KeyTension, positions),
+                Breathiness = Curve(snapshot, Declarations.KeyBreathiness, positions),
+                Voicing = Curve(snapshot, Declarations.KeyVoicing, positions),
+            },
             R2Directory = mR2Directory,
             MelModelPath = mMelModelPath,
         };
@@ -383,6 +435,19 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
     /// Han goes through the install's tables; anything else falls back to a vowel rather
     /// than failing the note.
     /// </summary>
+    /// <summary>
+    /// One automation curve sampled at the block's frame times, or null when the project
+    /// does not carry it. Null and "the curve at its default" render identically, which is
+    /// what keeps an untouched project bit-identical to one without the control.
+    /// </summary>
+    static double[]? Curve(VoiceSynthesisSnapshot snapshot, string key, double[] positions)
+    {
+        if (!snapshot.Automations.TryGetValue(key, out var automation) || automation?.Evaluator is null)
+            return null;
+        var values = new double[positions.Length];
+        automation.Evaluator.Evaluate(positions, values);
+        return values;
+    }
     string PhoneFor(string lyric)
     {
         if (string.IsNullOrWhiteSpace(lyric))

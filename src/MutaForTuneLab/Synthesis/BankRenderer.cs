@@ -54,7 +54,7 @@ public static class BankRenderer
     }
 
     public static BankResult Assemble(
-        IBankSource assets, IReadOnlyList<RenderNote> notes, int totalFrames, int bankPitchCode = 0)
+        IBankSource assets, IReadOnlyList<RenderNote> notes, int totalFrames, string bankPitchMode = "auto", double bankPitchOffset = 0.0, int bankPitchNote = 0)
     {
         int mgcOrder = assets.MgcOrder;
         int bapOrder = assets.BapOrder;
@@ -123,7 +123,7 @@ public static class BankRenderer
                     leftContextNonZero: previousPhone != "sil");
 
                 var item = BankContext.SelectNoteItem(assets.Groups, initial, previousPhone, final,
-                    plan.TargetCore, PitchFor(note, bankPitchCode), 0);
+                    plan.TargetCore, PitchFor(note, bankPitchMode, bankPitchOffset, bankPitchNote), 0);
                 if (item is not null)
                 {
                     var (itemMgc, itemBap) = assets.Streams(item);
@@ -156,7 +156,7 @@ public static class BankRenderer
                 state: state);
 
             var vowelItem = BankContext.SelectNoteItem(assets.Groups, final, previousPhone,
-                rightContext, vowelPlan.TargetCore, PitchFor(note, bankPitchCode), vowelClass);
+                rightContext, vowelPlan.TargetCore, PitchFor(note, bankPitchMode, bankPitchOffset, bankPitchNote), vowelClass);
             if (vowelItem is not null)
             {
                 var (itemMgc, itemBap) = assets.Streams(vowelItem);
@@ -180,13 +180,18 @@ public static class BankRenderer
         return new BankResult(mgc, bap, silence);
     }
 
-    /// <summary>The pitch the bank should answer in, honouring the 换采样 setting.</summary>
-    static double PitchFor(RenderNote note, int bankPitchCode)
+    /// <summary>
+    /// The pitch the bank is asked for: the note itself, shifted, or pinned to one region.
+    /// The note still sounds at its own pitch; this chooses which recorded register the
+    /// frames come from, which is what 换采样 means.
+    /// </summary>
+    static double PitchFor(RenderNote note, string mode, double offset, int fixedNote)
     {
-        double hz = 440.0 * Math.Pow(2.0, (note.Midi - 69) / 12.0);
-        return bankPitchCode > 0
-            ? 440.0 * Math.Pow(2.0, (bankPitchCode - 57) / 12.0)
-            : hz;
+        if (mode == "fixed" && fixedNote > 0)
+            return 440.0 * Math.Pow(2.0, (fixedNote - 69) / 12.0);
+
+        double midi = note.Midi + (mode == "offset" ? offset : 0.0);
+        return 440.0 * Math.Pow(2.0, (midi - 69) / 12.0);
     }
 
     static void MarkVoiced(bool[] silence, int start, int end)

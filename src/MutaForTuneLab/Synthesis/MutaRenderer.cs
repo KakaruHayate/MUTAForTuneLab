@@ -31,6 +31,13 @@ public sealed class RenderRequest
     public double[]? Timbre { get; init; }
     /// <summary>Husky in decibels per frame; null leaves the model's aperiodicity.</summary>
     public double[]? Husky { get; init; }
+
+    /// <summary>"auto" follows each note, "offset" shifts it, "fixed" pins one region.</summary>
+    public string BankPitchMode { get; init; } = "auto";
+    /// <summary>Semitone shift applied to the pitch the bank is asked for.</summary>
+    public double BankPitchOffset { get; init; }
+    /// <summary>MIDI note the bank region is pinned to, when the mode is "fixed".</summary>
+    public int BankPitchNote { get; init; }
 }
 
 public sealed record RenderResult(float[] Audio, double[] FramePitch, IReadOnlyList<RenderNote> Notes);
@@ -143,7 +150,8 @@ public static class MutaRenderer
             try
             {
                 var assets = BankAssets.Load(voice);
-                bank = BankRenderer.Assemble(assets, notes, request.TotalFrames);
+                bank = BankRenderer.Assemble(assets, notes, request.TotalFrames,
+                    request.BankPitchMode, request.BankPitchOffset, request.BankPitchNote);
             }
             catch (Exception)
             {
