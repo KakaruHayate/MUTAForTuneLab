@@ -1,7 +1,7 @@
 # MUTAForTuneLab
 
 A TuneLab voice extension that brings MUTA's singing voices to TuneLab: Chinese and
-Japanese lyrics, rendered through the **WORLD / worldline** vocoder.
+Japanese lyrics, rendered through the **WORLD / WORLDLINE** vocoder.
 
 > Status: early. The package loads, enumerates the installed voices and declares its
 > whole parameter surface; synthesis is being ported stage by stage. See
