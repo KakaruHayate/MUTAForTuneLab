@@ -1,7 +1,7 @@
 """Reference digest of a MUTA .inf, for comparing the C# parser against the Python one.
 
-The Python parser lives in the development workspace (it is the reverse-engineered
-reference), so it is not vendored here: pass its directory with --tools.
+The Python parser is the reference implementation used while porting, so it is not
+vendored here: pass its directory with --tools.
 
 Usage:
     python tests/reference/inf_digest.py --tools <path to MUTA/tools> <file.inf>

@@ -75,7 +75,10 @@ public sealed class InfFile
 
     public static InfFile Load(string path) => Parse(DecodeAll(File.ReadAllBytes(path)), path);
 
-    /// <summary>mcore.dll 在 VA 0x1000E390 的字节变换之逆；对 256 个值双射。</summary>
+    /// <summary>
+    /// The byte transform MUTA applies to a whole .inf before writing it; it is a
+    /// bijection over all 256 values, so this is its inverse.
+    /// </summary>
     public static byte DecodeByte(byte value) => value switch
     {
         < 0x28 => value,

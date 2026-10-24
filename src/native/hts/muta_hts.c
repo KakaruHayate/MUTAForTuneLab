@@ -1,8 +1,8 @@
 /*
  * muta_hts -- the HTS engine as this plugin needs it.
  *
- * Why a new wrapper instead of the instrumentation build used during the
- * reverse-engineering phase:
+ * Why a new wrapper instead of the earlier instrumentation build:
+ *
  *
  *   * that build kept its side state (note flags, GV suppression, capture
  *     buffers) in process-wide statics, so two sessions overwrote each other.

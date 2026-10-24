@@ -9,9 +9,9 @@
   mis-selects bank units, so this asserts the whole parse: every group, every item's
   11 integer fields, and the trailing PCM block table, folded into one SHA-256.
 
-  The reference parser lives in the development workspace (it is the
-  reverse-engineered one), so point -MutaTools at the directory holding muta_inf.py,
-  or set MUTA_TOOLS.
+  The reference parser is the Python implementation used while porting and is not
+  vendored here, so point -MutaTools at the directory holding muta_inf.py, or set
+  MUTA_TOOLS.
 
   ASCII-only on purpose: Windows PowerShell 5.1 reads BOM-less .ps1 files using the
   ANSI code page.
