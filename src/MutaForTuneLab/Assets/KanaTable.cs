@@ -19,14 +19,18 @@ namespace MutaForTuneLab.Assets;
 public sealed class KanaTable
 {
     readonly Dictionary<string, string> mMora = new(StringComparer.Ordinal);
+    readonly Dictionary<string, string> mRomaji = new(StringComparer.OrdinalIgnoreCase);
     readonly int mLongest;
+    readonly int mRomajiLongest;
 
     public int Count => mMora.Count;
 
-    KanaTable(Dictionary<string, string> mora, int longest)
+    KanaTable(Dictionary<string, string> mora, Dictionary<string, string> romaji, int longest, int romajiLongest)
     {
         mMora = mora;
+        mRomaji = romaji;
         mLongest = longest;
+        mRomajiLongest = romajiLongest;
     }
 
     /// <summary>Loads the UTF-8 table from a directory holding Sinsy's dictionaries.</summary>
@@ -51,19 +55,53 @@ public sealed class KanaTable
         {
             if (line.Length == 0)
                 continue;
-            int tab = line.IndexOf('\t');
-            if (tab <= 0)
+
+            // "きゃ k y a": the kana, then one or more phonemes, all separated by spaces.
+            var fields = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+            if (fields.Length < 2)
                 continue;
 
-            string kana = line[..tab].Trim();
-            string phones = line[(tab + 1)..].Trim();
+            string kana = fields[0];
+            string phones = string.Join(' ', fields[1..]);
             if (kana.Length == 0 || phones.Length == 0)
                 continue;
 
             mora[kana] = phones;
             longest = Math.Max(longest, kana.Length);
         }
-        return mora.Count > 0 ? new KanaTable(mora, longest) : null;
+        // Invert: the phonemes a mora is pronounced as, joined, are its romaji.
+        var romaji = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        int romajiLongest = 1;
+        foreach (var pair in mora)
+        {
+            string key = pair.Value.Replace(" ", string.Empty);
+            if (key.Length == 0 || romaji.ContainsKey(key))
+                continue;
+            romaji[key] = pair.Key;
+            romajiLongest = Math.Max(romajiLongest, key.Length);
+        }
+
+        return mora.Count > 0 ? new KanaTable(mora, romaji, longest, romajiLongest) : null;
+    }
+
+    /// <summary>
+    /// Romaji back to kana.
+    ///
+    /// The host hands us romanised lyrics, and Sinsy only reads kana. The table already
+    /// holds the other direction: a mora's phonemes concatenated are exactly its romaji
+    /// (きょ = ky + o = "kyo"), so the mapping is read out of the table instead of being
+    /// written again.
+    /// </summary>
+    public string? KanaFor(string romaji)
+    {
+        if (string.IsNullOrEmpty(romaji))
+            return null;
+        for (int length = Math.Min(mRomajiLongest, romaji.Length); length >= 1; length--)
+        {
+            if (mRomaji.TryGetValue(romaji[..length], out var kana))
+                return kana;
+        }
+        return null;
     }
 
     /// <summary>True when the text contains kana (so the Japanese table applies).</summary>

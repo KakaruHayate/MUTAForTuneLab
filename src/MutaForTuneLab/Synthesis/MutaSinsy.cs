@@ -4,7 +4,9 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Globalization;
 using System.Text;
+using MutaForTuneLab.Assets;
 using MutaForTuneLab.Native;
+using TuneLab.SDK;
 
 namespace MutaForTuneLab.Synthesis;
 
@@ -77,25 +79,57 @@ public static class MutaSinsy
             var fields = line.Split(' ');
             if (fields.Length < 3)
                 continue;
-            string phoneme = fields[2];
-            int at = phoneme.IndexOf('@');
-            string symbol = at > 0 ? phoneme[..at] : phoneme;
+            // "<class>@<ll>^<l>-<current>+<r>=<rr>": the class letter is not the
+            // phoneme; the current one sits between the dash and the plus.
+            string field = fields[2];
+            int at = field.IndexOf('@');
+            string context = at >= 0 ? field[(at + 1)..] : field;
+            int dash = context.IndexOf('-');
+            int plus = dash >= 0 ? context.IndexOf('+', dash + 1) : -1;
+            string symbol = dash >= 0 && plus > dash ? context[(dash + 1)..plus] : context;
             if (symbol is "pau" or "sil" or "xx")
                 continue;
             if (!double.TryParse(fields[0], NumberStyles.Float, CultureInfo.InvariantCulture, out double begin))
                 continue;
-            start = Math.Min(start, begin * 1.0e-7);
+            // A derived begin is written as -1 and means "continues the previous phoneme";
+            // taking it as a time drags the window back to the start of the score.
+            if (begin >= 0.0)
+                start = Math.Min(start, begin * 1.0e-7);
             if (double.TryParse(fields[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double finish)
                 && finish >= 0)
+            {
                 end = Math.Max(end, finish * 1.0e-7);
-            else
+            }
+            else if (begin >= 0.0)
+            {
                 end = Math.Max(end, begin * 1.0e-7);
+            }
         }
 
         if (start == double.MaxValue || end <= start)
             return null;
         return ((int)Math.Round(start / frameSeconds), (int)Math.Round(end / frameSeconds));
     }
+    static KanaTable? sKana;
+    static bool sKanaTried;
+
+    /// <summary>
+    /// Sinsy reads kana, and the host hands us romanised lyrics, so the syllables are put
+    /// back into kana here. Text that is already kana passes through unchanged.
+    /// </summary>
+    public static string ToKana(string lyric)
+    {
+        if (string.IsNullOrWhiteSpace(lyric) || KanaTable.IsKana(lyric))
+            return lyric;
+
+        if (!sKanaTried)
+        {
+            sKanaTried = true;
+            sKana = KanaTable.TryLoad(DictionaryDirectory);
+        }
+        return sKana?.KanaFor(lyric) ?? lyric;
+    }
+
     /// <summary>Where the dictionaries ship, inside the package.</summary>
     public static string DictionaryDirectory => Path.Combine(NativeLibraries.PackageDirectory, "sinsy", "dic");
 

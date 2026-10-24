@@ -191,15 +191,17 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
                 EndTime = block.EndTime,
             };
             double peak = 0.0, energy = 0.0;
-            foreach (var sample in result.Audio)
+            int peakAt = -1;
+            for (int i = 0; i < result.Audio.Length; i++)
             {
-                peak = Math.Max(peak, Math.Abs(sample));
-                energy += sample * sample;
+                double magnitude = Math.Abs(result.Audio[i]);
+                if (magnitude > peak) { peak = magnitude; peakAt = i; }
+                energy += result.Audio[i] * result.Audio[i];
             }
             double rms = result.Audio.Length > 0 ? Math.Sqrt(energy / result.Audio.Length) : 0.0;
             TuneLabContext.Global.GetLogger().Debug(
                 $"[MUTA] rendered {block.StartTime:F3}..{block.EndTime:F3}s: {result.Audio.Length} samples " +
-                $"peak {peak:F4} rms {rms:F4}");
+                $"peak {peak:F4} at {peakAt} rms {rms:F4}");
             mPhonemes = MergePhonemes();
             mStatusChanged.Invoke();
             mPhonemesChanged.Invoke();

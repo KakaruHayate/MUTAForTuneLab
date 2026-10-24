@@ -34,7 +34,7 @@ public static class MusicXmlWriter
         var builder = new StringBuilder();
         builder.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
         builder.AppendLine("<!DOCTYPE score-partwise PUBLIC \"-//Recordare//DTD MusicXML 2.0 Partwise//EN\" \"http://www.musicxml.org/dtds/partwise.dtd\">");
-        builder.AppendLine("<score-partwise version=\"2.0\">");
+        builder.AppendLine("<score-partwise version=\"2.0\" xml:lang=\"ja\">");
         builder.AppendLine("  <part-list>");
         builder.AppendLine("    <score-part id=\"P1\"><part-name>Voice</part-name></score-part>");
         builder.AppendLine("  </part-list>");
@@ -46,7 +46,7 @@ public static class MusicXmlWriter
         builder.AppendLine("        <time><beats>4</beats><beat-type>4</beat-type></time>");
         builder.AppendLine("        <clef><sign>G</sign><line>2</line></clef>");
         builder.AppendLine("      </attributes>");
-        builder.AppendLine($"      <sound tempo=\"{Tempo.ToString(CultureInfo.InvariantCulture)}\"/>");
+        builder.AppendLine($"      <direction><sound tempo=\"{Tempo.ToString(CultureInfo.InvariantCulture)}\"/></direction>");
 
         AppendRest(builder, PadDivisions);
 

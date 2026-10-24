@@ -41,6 +41,8 @@ public static class MutaRenderer
     public const int SampleRate = 48000;
     public const double FrameSeconds = 0.005;
     public const int Bins = 1025;
+    /// <summary>The log gain the rest of the chain was tuned against.</summary>
+    public const double ReferenceLogGain = -4.5;
 
     public static RenderResult Render(RenderRequest request, CancellationToken cancellation)
     {
@@ -62,8 +64,12 @@ public static class MutaRenderer
             foreach (var note in notes)
             {
                 scoreNotes.Add(new ScoreNote(
-                    note.StartFrame * FrameSeconds, note.Frames * FrameSeconds, note.Midi, note.Lyric));
+                    note.StartFrame * FrameSeconds, note.Frames * FrameSeconds, note.Midi,
+                    MutaSinsy.ToKana(note.Lyric)));
             }
+            TuneLabContext.Global.GetLogger().Debug(
+                $"[MUTA] jp note0 phone=[{notes[0].Phone}] lyric=[{notes[0].Lyric}] " +
+                $"kana=[{MutaSinsy.ToKana(notes[0].Lyric)}] notes={notes.Count}");
             japaneseLabels = MutaSinsy.Labels(scoreNotes, request.TotalFrames * FrameSeconds,
                 MutaSinsy.DictionaryDirectory);
             if (japaneseLabels is null)
@@ -96,6 +102,14 @@ public static class MutaRenderer
 
         // Sinsy pads the phrase with pauses it adds itself; the labels say where the singing
         // actually is, so cut to that and the span matches the block again.
+        if (japaneseLabels is not null)
+        {
+            var probe = MutaSinsy.ContentWindow(japaneseLabels, FrameSeconds);
+            TuneLabContext.Global.GetLogger().Debug(
+                $"[MUTA] jp: {frames} frames, window {(probe is null ? "null" : $"{probe.Value.StartFrame}..{probe.Value.EndFrame}")} " +
+                $"lines={japaneseLabels.Split((char)10).Length} nonpau={CountContent(japaneseLabels)}");
+        }
+
         if (japaneseLabels is not null
             && MutaSinsy.ContentWindow(japaneseLabels, FrameSeconds) is { } window)
         {
@@ -168,6 +182,28 @@ public static class MutaRenderer
             silence = new bool[pitch.Length];
             for (int f = 0; f < pitch.Length; f++)
                 silence[f] = pitch[f] <= 0.0;
+
+            // Voices do not agree on what zero means: MUTA's sits near a log gain of -4.5,
+            // the Japanese one near +3, which is a factor of three thousand in amplitude.
+            // The vocoder expects one reference, so each voice is placed on it.
+            double sum = 0.0;
+            int voiced = 0;
+            for (int f = 0; f < spectrumMgc.Length; f++)
+            {
+                if (silence[f])
+                    continue;
+                sum += spectrumMgc[f][0];
+                voiced++;
+            }
+            if (voiced > 0)
+            {
+                double correction = ReferenceLogGain - sum / voiced;
+                if (Math.Abs(correction) > 0.01)
+                    for (int f = 0; f < spectrumMgc.Length; f++)
+                        spectrumMgc[f][0] += correction;
+                TuneLabContext.Global.GetLogger().Debug(
+                    $"[MUTA] level correction {correction:F3} (voice {sum / voiced:F3})");
+            }
         }
 
         {
@@ -203,6 +239,55 @@ public static class MutaRenderer
             audio[i] = (float)Math.Clamp(output.Samples[i] * gain, -1.0, 1.0);
 
         return new RenderResult(audio, pitch, notes);
+    }
+
+    static int CountContent(string text)
+    {
+        int count = 0;
+        foreach (var line in text.Split(new[] { (char)10, (char)13 }, StringSplitOptions.RemoveEmptyEntries))
+        {
+            var fields = line.Split(' ');
+            if (fields.Length < 3) continue;
+            var field = fields[2];
+            int at = field.IndexOf('@');
+            var context = at >= 0 ? field[(at + 1)..] : field;
+            int dash = context.IndexOf('-');
+            int plus = dash >= 0 ? context.IndexOf('+', dash + 1) : -1;
+            var symbol = dash >= 0 && plus > dash ? context[(dash + 1)..plus] : context;
+            if (symbol is not ("pau" or "sil" or "xx")) count++;
+        }
+        return count;
+    }
+
+    /// <summary>
+    /// Keeps a transient inside the rails without flattening it.
+    ///
+    /// Below the knee this is the identity; above it the curve approaches 1 asymptotically,
+    /// so a peak that would have clipped instead rounds off. Clamping would have held the
+    /// sample at full scale and added harmonics; this does not.
+    /// </summary>
+    const double LimitKnee = 0.8;
+
+    static double SoftLimit(double value)
+    {
+        double magnitude = Math.Abs(value);
+        if (magnitude <= LimitKnee)
+            return value;
+        double over = (magnitude - LimitKnee) / (1.0 - LimitKnee);
+        double shaped = LimitKnee + (1.0 - LimitKnee) * Math.Tanh(over);
+        return value < 0.0 ? -shaped : shaped;
+    }
+
+    static string FirstLine(string text)
+    {
+        var lines = text.Split(new[] { (char)10, (char)13 }, StringSplitOptions.RemoveEmptyEntries);
+        return lines.Length > 0 ? lines[0][..Math.Min(60, lines[0].Length)] : "";
+    }
+
+    static string LastLine(string text)
+    {
+        var lines = text.Split(new[] { (char)10, (char)13 }, StringSplitOptions.RemoveEmptyEntries);
+        return lines.Length > 0 ? lines[^1][..Math.Min(60, lines[^1].Length)] : "";
     }
 
     static NoteScore BuildScore(IReadOnlyList<RenderNote> notes, int totalFrames)
