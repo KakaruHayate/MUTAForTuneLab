@@ -1,0 +1,24 @@
+{
+  "name": "longrest",
+  "tempo": 120,
+  "notes": [
+    {
+      "phone": "sil",
+      "start": 0,
+      "frames": 300,
+      "pitch": 0
+    },
+    {
+      "phone": "le",
+      "start": 300,
+      "frames": 50,
+      "pitch": 67
+    },
+    {
+      "phone": "sil",
+      "start": 350,
+      "frames": 400,
+      "pitch": 0
+    }
+  ]
+}

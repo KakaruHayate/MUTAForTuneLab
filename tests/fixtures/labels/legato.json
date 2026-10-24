@@ -1,0 +1,30 @@
+{
+  "name": "legato",
+  "tempo": 120,
+  "notes": [
+    {
+      "phone": "sil",
+      "start": 0,
+      "frames": 80,
+      "pitch": 0
+    },
+    {
+      "phone": "ni",
+      "start": 80,
+      "frames": 60,
+      "pitch": 72
+    },
+    {
+      "phone": "hao",
+      "start": 140,
+      "frames": 70,
+      "pitch": 67
+    },
+    {
+      "phone": "sil",
+      "start": 210,
+      "frames": 100,
+      "pitch": 0
+    }
+  ]
+}

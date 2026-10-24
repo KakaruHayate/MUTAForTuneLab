@@ -1,0 +1,7 @@
+0 4140000 xx^xx-sil+m=a/D:xx!xx/E:xx&50[xx@xx]xx+xx/F:48#30/G:2/H:xx/I:xx/J:1
+4140000 5000000 xx^sil-m+a=sil/D:xx!50/E:48&30[1@1]xx+xx/F:xx#20/G:2/H:xx/I:1/J:1
+5000000 8000000 sil^m-a+sil=m/D:xx!50/E:48&30[1@1]xx+xx/F:xx#20/G:2/H:xx/I:1/J:1
+8000000 9140000 m^a-sil+m=i/D:48!30/E:xx&20[xx@xx]xx+xx/F:72#30/G:2/H:1/I:xx/J:xx
+9140000 10000000 a^sil-m+i=sil/D:xx!20/E:72&30[1@1]xx+xx/F:xx#50/G:2/H:1/I:1/J:xx
+10000000 13000000 sil^m-i+sil=xx/D:xx!20/E:72&30[1@1]xx+xx/F:xx#50/G:2/H:1/I:1/J:xx
+13000000 18000000 m^i-sil+xx=xx/D:72!30/E:xx&50[xx@xx]xx+xx/F:xx#xx/G:2/H:1/I:xx/J:xx

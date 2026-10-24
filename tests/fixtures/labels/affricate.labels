@@ -1,0 +1,10 @@
+0 3700000 xx^xx-sil+zh=ib/D:xx!xx/E:xx&45[xx@xx]xx+xx/F:52#17/G:4/H:xx/I:xx/J:xx
+3700000 4500000 xx^sil-zh+ib=ch/D:xx!45/E:52&17[1@4]xx+m2/F:54#17/G:4/H:xx/I:4/J:xx
+4500000 5375000 sil^zh-ib+ch=ib/D:xx!45/E:52&17[1@4]xx+m2/F:54#17/G:4/H:xx/I:4/J:xx
+5375000 6250000 zh^ib-ch+ib=sh/D:52!17/E:54&17[2@3]p2+m2/F:56#17/G:4/H:xx/I:4/J:xx
+6250000 7125000 ib^ch-ib+sh=ib/D:52!17/E:54&17[2@3]p2+m2/F:56#17/G:4/H:xx/I:4/J:xx
+7125000 8000000 ch^ib-sh+ib=r/D:54!17/E:56&17[3@2]p2+p3/F:53#17/G:4/H:xx/I:4/J:xx
+8000000 9040000 ib^sh-ib+r=ib/D:54!17/E:56&17[3@2]p2+p3/F:53#17/G:4/H:xx/I:4/J:xx
+9040000 9750000 sh^ib-r+ib=sil/D:56!17/E:53&17[4@1]m3+xx/F:xx#60/G:4/H:xx/I:4/J:xx
+9750000 11500000 ib^r-ib+sil=xx/D:56!17/E:53&17[4@1]m3+xx/F:xx#60/G:4/H:xx/I:4/J:xx
+11500000 17500000 r^ib-sil+xx=xx/D:53!17/E:xx&60[xx@xx]xx+xx/F:xx#xx/G:4/H:4/I:xx/J:xx

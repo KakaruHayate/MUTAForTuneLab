@@ -1,0 +1,36 @@
+{
+  "name": "phrase",
+  "tempo": 96,
+  "notes": [
+    {
+      "phone": "sil",
+      "start": 0,
+      "frames": 120,
+      "pitch": 0
+    },
+    {
+      "phone": "wo",
+      "start": 120,
+      "frames": 40,
+      "pitch": 69
+    },
+    {
+      "phone": "ai",
+      "start": 160,
+      "frames": 50,
+      "pitch": 67
+    },
+    {
+      "phone": "ni",
+      "start": 210,
+      "frames": 60,
+      "pitch": 72
+    },
+    {
+      "phone": "sil",
+      "start": 270,
+      "frames": 150,
+      "pitch": 0
+    }
+  ]
+}

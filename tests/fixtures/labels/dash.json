@@ -1,0 +1,36 @@
+{
+  "name": "dash",
+  "tempo": 120,
+  "notes": [
+    {
+      "phone": "sil",
+      "start": 0,
+      "frames": 80,
+      "pitch": 0
+    },
+    {
+      "phone": "a",
+      "start": 80,
+      "frames": 120,
+      "pitch": 69
+    },
+    {
+      "phone": "-",
+      "start": 200,
+      "frames": 60,
+      "pitch": 69
+    },
+    {
+      "phone": "o",
+      "start": 260,
+      "frames": 80,
+      "pitch": 67
+    },
+    {
+      "phone": "sil",
+      "start": 340,
+      "frames": 100,
+      "pitch": 0
+    }
+  ]
+}

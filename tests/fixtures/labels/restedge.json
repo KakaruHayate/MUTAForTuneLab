@@ -1,0 +1,36 @@
+{
+  "name": "restedge",
+  "tempo": 120,
+  "notes": [
+    {
+      "phone": "sil",
+      "start": 0,
+      "frames": 200,
+      "pitch": 0
+    },
+    {
+      "phone": "a",
+      "start": 200,
+      "frames": 50,
+      "pitch": 69
+    },
+    {
+      "phone": "sil",
+      "start": 250,
+      "frames": 201,
+      "pitch": 0
+    },
+    {
+      "phone": "o",
+      "start": 451,
+      "frames": 50,
+      "pitch": 67
+    },
+    {
+      "phone": "sil",
+      "start": 501,
+      "frames": 200,
+      "pitch": 0
+    }
+  ]
+}
