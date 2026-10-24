@@ -194,18 +194,35 @@ public static class MgcSpectrum
     }
 }
 
-/// <summary>Minimal iterative radix-2 FFT, enough for the DCT-I above.</summary>
+/// <summary>Minimal iterative radix-2 FFT, enough for the DCT-I above and the output EQ.</summary>
 internal static class Fft
 {
     /// <summary>In-place real transform of a power-of-two length buffer (imaginary part is zero on entry).</summary>
     public static void Real(double[] data)
     {
-        int n = data.Length;
+        var imaginary = new double[data.Length];
+        Forward(data, imaginary);
+    }
+
+    /// <summary>In-place complex forward transform.</summary>
+    public static void Forward(double[] re, double[] im)
+    {
+        Transform(re, im, inverse: false);
+    }
+
+    /// <summary>In-place complex inverse transform, scaled by 1/n.</summary>
+    public static void Inverse(double[] re, double[] im)
+    {
+        Transform(re, im, inverse: true);
+    }
+
+    static void Transform(double[] re, double[] im, bool inverse)
+    {
+        int n = re.Length;
         if (n < 2 || (n & (n - 1)) != 0)
             throw new ArgumentException("FFT length must be a power of two");
-
-        var re = data;
-        var im = new double[n];
+        if (im.Length != n)
+            throw new ArgumentException("real and imaginary parts must be the same length");
 
         // Bit-reversal permutation.
         for (int i = 1, j = 0; i < n; i++)
@@ -223,7 +240,7 @@ internal static class Fft
 
         for (int length = 2; length <= n; length <<= 1)
         {
-            double angle = -2.0 * Math.PI / length;
+            double angle = (inverse ? 2.0 : -2.0) * Math.PI / length;
             double wRe = Math.Cos(angle), wIm = Math.Sin(angle);
             int half = length >> 1;
             for (int i = 0; i < n; i += length)
@@ -244,6 +261,15 @@ internal static class Fft
                 }
             }
         }
-        // Only the real part is used by the caller; the imaginary buffer is discarded.
+
+        if (inverse)
+        {
+            double scale = 1.0 / n;
+            for (int i = 0; i < n; i++)
+            {
+                re[i] *= scale;
+                im[i] *= scale;
+            }
+        }
     }
 }

@@ -128,6 +128,19 @@ static void Aperiodicity(string label, double[][] bap)
     var text = string.Join(" ", sum.Select((v, i) => $"{i}:{v / Math.Max(1, frames):F1}"));
     Console.WriteLine($"  ap {label,-6} {text}");
 }
+// Is the equalizer transparent when it should be? A flat curve must return the input.
+{
+    var probe = new double[48000];
+    for (int i = 0; i < probe.Length; i++)
+        probe[i] = 0.25 * Math.Sin(2.0 * Math.PI * 440.0 * i / 48000.0);
+    double rmsIn = Math.Sqrt(probe.Sum(v => v * v) / probe.Length);
+    double peakIn = probe.Max(v => Math.Abs(v));
+    var flat = Enumerable.Repeat(1.0, AudioEqualizer.FftSize / 2 + 1).ToArray();
+    AudioEqualizer.Apply(probe, flat);
+    double rmsOut = Math.Sqrt(probe.Sum(v => v * v) / probe.Length);
+    double peakOut = probe.Max(v => Math.Abs(v));
+    Console.WriteLine($"  eq transparency: rms {rmsIn:F4}->{rmsOut:F4}  peak {peakIn:F4}->{peakOut:F4}");
+}
 // How much can the aperiodicity move the result at all? Push it to both extremes.
 Console.WriteLine();
 Console.WriteLine("aperiodicity lever (bank parameters):");

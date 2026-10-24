@@ -262,12 +262,19 @@ public static class MutaRenderer
             spectrumMgc, spectrumBap, pitch, silence, request.Alpha, request.Expression,
             request.Mode, r2, out _, spectralGain);
 
+        // Last stage of the layer match, and the only one measured on the signal itself:
+        // the parameter-domain correction leaves about half the tilt, because the vocoder
+        // maps an envelope to samples through its own harmonic structure. Calibrated once
+        // per voice from the first block, then reused.
+        if (bank is not null && output.Samples.Length >= AudioEqualizer.FftSize)
+            ApplyVoiceEqualizer(voice, output.Samples, mgc, bap, lf0, request);
+
         cancellation.ThrowIfCancellationRequested();
 
         var audio = new float[output.Samples.Length];
         double gain = Math.Pow(10.0, request.GainDecibels / 20.0);
         for (int i = 0; i < audio.Length; i++)
-            audio[i] = (float)Math.Clamp(output.Samples[i] * gain, -1.0, 1.0);
+            audio[i] = (float)SoftLimit(output.Samples[i] * gain);
 
         return new RenderResult(audio, pitch, notes);
     }
@@ -373,7 +380,93 @@ public static class MutaRenderer
         return pitch;
     }
 
-    /// <summary>A flat pitch contour from the notes, for when the bank supplies the frames.</summary>
+    static readonly Dictionary<string, double[]?> sEqualizers = new(StringComparer.Ordinal);
+    static readonly object sEqualizerGate = new();
+
+    /// <summary>
+    /// Learns the recorded layer's tone error from the first block and reuses it.
+    ///
+    /// Calibration costs one extra render of the model layer, so it happens once per voice
+    /// per session; afterwards the stored curve is applied directly. A voice whose two
+    /// layers already agree gets a flat curve and nothing changes.
+    /// </summary>
+    static void ApplyVoiceEqualizer(
+        MutaVoice voice, double[] bankAudio, double[][] mgc, double[][] bap, double[] lf0, RenderRequest request)
+    {
+        string key = voice.Id + "|" + voice.VoiceFile + "|" + voice.BankFile;
+        lock (sEqualizerGate)
+        {
+            if (sEqualizers.TryGetValue(key, out var known))
+            {
+                if (known is not null)
+                    AudioEqualizer.Apply(bankAudio, known);
+                return;
+            }
+            sEqualizers[key] = null;   // one attempt, even if it fails
+
+            var modelPitch = PitchFromLf0(lf0);
+            var modelSilence = new bool[modelPitch.Length];
+            for (int f = 0; f < modelPitch.Length; f++)
+                modelSilence[f] = modelPitch[f] <= 0.0;
+
+            var modelOutput = VocoderPipeline.Render(
+                mgc, bap, modelPitch, modelSilence, request.Alpha, request.Expression,
+                request.Mode, null, out _);
+
+            var target = AudioEqualizer.AverageSpectrum(modelOutput.Samples);
+            var source = AudioEqualizer.AverageSpectrum(bankAudio);
+            var curve = target is null || source is null ? null : AudioEqualizer.BuildCurve(target, source);
+            sEqualizers[key] = curve;
+            if (curve is null)
+            {
+                MutaDiagnostics.Log("[MUTA] equalizer not calibrated");
+                return;
+            }
+
+            MutaDiagnostics.Log($"[MUTA] equalizer calibrated, gain {curve.Min():F3}..{curve.Max():F3}");
+
+            // Tone only: the level was decided upstream, so put it back. The correction
+            // cuts the band that carries most of the energy, so without this the layer
+            // would simply get quieter.
+            double beforeRms = RootMeanSquare(bankAudio);
+            double beforePeak = bankAudio.Length > 0 ? bankAudio.Max(v => Math.Abs(v)) : 0.0;
+            AudioEqualizer.Apply(bankAudio, curve);
+            double afterRms = RootMeanSquare(bankAudio);
+            if (afterRms > 0.0 && beforeRms > 0.0)
+            {
+                double scale = beforeRms / afterRms;
+                for (int i = 0; i < bankAudio.Length; i++)
+                    bankAudio[i] *= scale;
+
+                // Rebalancing makes the signal peakier, and a peak the limiter has to
+                // flatten costs more than the decibel it saves.
+                double peak = 0.0;
+                foreach (var value in bankAudio)
+                    peak = Math.Max(peak, Math.Abs(value));
+                if (peak > 0.95)
+                {
+                    double headroom = 0.95 / peak;
+                    for (int i = 0; i < bankAudio.Length; i++)
+                        bankAudio[i] *= headroom;
+                }
+
+                MutaDiagnostics.Log(
+                    $"[MUTA] equalizer level: rms {beforeRms:F4}->{afterRms:F4} scale {scale:F3} " +
+                    $"peak in {beforePeak:F3} out {peak:F3}");
+            }
+        }
+    }
+
+    static double RootMeanSquare(double[] values)
+    {
+        if (values.Length == 0)
+            return 0.0;
+        double sum = 0.0;
+        foreach (var value in values)
+            sum += value * value;
+        return Math.Sqrt(sum / values.Length);
+    }
+
     static double[] CarrierFromNotes(IReadOnlyList<RenderNote> notes, int frames)
     {
         var carrier = new double[frames];
