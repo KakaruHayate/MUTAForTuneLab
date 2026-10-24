@@ -74,7 +74,7 @@ This project stands on other people's work. Thank you to:
 
 | Project | Author / maintainer | Used for | Licence |
 | --- | --- | --- | --- |
-| [worldline](https://github.com/stakira/OpenUtau) (`cpp/worldline`) | **StAkira** (OpenUtau) | the vocoder that turns our acoustic parameters into audio | MIT |
+| [WORLDLINE R1.1/R2](https://github.com/stakira/OpenUtau) (`cpp/worldline`) | **StAkira** (OpenUtau) | the vocoder that turns our acoustic parameters into audio | MIT |
 | [WORLD](https://github.com/mmorise/World) | Masanori Morise and contributors | spectral envelope / aperiodicity synthesis underneath worldline | modified BSD |
 | [HTS — hts_engine API](http://hts-engine.sourceforge.net/) | HTS Working Group, Nagoya Institute of Technology | HMM acoustic model inference (durations, F0, mel-cepstrum) | modified BSD |
 | [Sinsy](http://sinsy.sourceforge.net/) | Sinsy Working Group, Nagoya Institute of Technology | Japanese text → phonemes and full-context labels | modified BSD |
