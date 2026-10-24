@@ -113,3 +113,26 @@ $wlDll = Get-ChildItem $wlOut -Filter "worldline.dll" -Recurse | Select-Object -
 if (-not $wlDll) { throw "worldline.dll not found under $wlOut" }
 Copy-Item -LiteralPath $wlDll.FullName -Destination (Join-Path $package "worldline.dll") -Force
 Write-Host ("wrote {0} ({1:N0} bytes)" -f (Join-Path $package "worldline.dll"), $wlDll.Length)
+# --- 6. muta_sinsy: the Japanese label builder ---
+Write-Host ""
+Write-Host "building muta_sinsy..."
+$sinsyBuild = Join-Path $scratch "sinsy_build"
+$sinsyArgs = @(
+    "-S", (Join-Path $repo "src\native\sinsy"),
+    "-B", $sinsyBuild,
+    "-G", $generator,
+    ("-DSINSY_SRC=" + (Join-Path $repo "third_party\sinsy"))
+)
+if ($generator -like "Visual Studio*") { $sinsyArgs += @("-A", "x64") }
+
+& cmake @sinsyArgs
+if ($LASTEXITCODE -ne 0) { throw "muta_sinsy configure failed" }
+& cmake --build $sinsyBuild --config $Configuration
+if ($LASTEXITCODE -ne 0) { throw "muta_sinsy build failed" }
+
+$sinsyOut = Join-Path $sinsyBuild $Configuration
+if (-not (Test-Path $sinsyOut)) { $sinsyOut = $sinsyBuild }
+$sinsyDll = Get-ChildItem $sinsyOut -Filter "muta_sinsy.dll" -Recurse | Select-Object -First 1
+if (-not $sinsyDll) { throw "muta_sinsy.dll not found under $sinsyOut" }
+Copy-Item -LiteralPath $sinsyDll.FullName -Destination (Join-Path $package "muta_sinsy.dll") -Force
+Write-Host ("wrote {0} ({1:N0} bytes)" -f (Join-Path $package "muta_sinsy.dll"), $sinsyDll.Length)
