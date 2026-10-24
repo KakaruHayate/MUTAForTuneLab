@@ -64,6 +64,7 @@ public static class BankRenderer
         Array.Fill(silence, true);
 
         int consSlots = 0, vowelSlots = 0, missedSlots = 0;
+        var picks = new List<string>();
         var state = new NoteAssemblyState();
         string previousPhone = "sil";
 
@@ -137,6 +138,7 @@ public static class BankRenderer
                         resized.TargetCore, resized.LeftExtension, resized.RightExtension);
                     BankAssembler.WriteNoteBlock(mgc, bap, block, cursor, resized);
                     consSlots++;
+                    if (picks.Count < 8) picks.Add($"{initial}@c{item.PitchCode}#{item.BankOffset}");
                     MarkVoiced(silence, cursor, cursor + consonantFrames);
                     cursor += consonantFrames;
                     previousDuration = consonantFrames;
@@ -165,6 +167,8 @@ public static class BankRenderer
                     vowelPlan.TargetCore, vowelPlan.LeftExtension, vowelPlan.RightExtension);
                 BankAssembler.WriteNoteBlock(mgc, bap, block, cursor, vowelPlan);
                 vowelSlots++;
+                if (picks.Count < 8)
+                    picks.Add($"{vowelItem.Current}@c{vowelItem.PitchCode}#{vowelItem.BankOffset}");
                 MarkVoiced(silence, cursor, Math.Min(totalFrames, note.StartFrame + note.Frames));
                 state = vowelPlan.NextState;
             }
@@ -176,7 +180,9 @@ public static class BankRenderer
         }
 
         MutaDiagnostics.Log(
-            $"[MUTA] bank slots {consSlots} consonant, {vowelSlots} vowel, {missedSlots} missed");
+            $"[MUTA] bank slots {consSlots} consonant, {vowelSlots} vowel, {missedSlots} missed; " +
+            $"pitch mode {bankPitchMode} offset {bankPitchOffset:F1} fixed {(bankPitchNote > 0 ? bankPitchNote : 0)}; " +
+            $"picks {string.Join(" ", picks)}");
         return new BankResult(mgc, bap, silence);
     }
 
