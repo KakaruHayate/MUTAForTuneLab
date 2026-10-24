@@ -50,8 +50,48 @@ def note_rows(track: dict, ppq: int) -> list[tuple[int, int, int, str]]:
     return rows
 
 
-def build_script(path: Path, voice: str, window: tuple[float, float] | None = None) -> str:
-    ustx = yaml.safe_load(path.read_text(encoding="utf-8-sig"))
+# SynthV counts time in blicks: 705600000 of them per quarter note.
+BLICKS_PER_QUARTER = 705600000
+
+
+def load_svp(path: Path) -> dict:
+    """Read a SynthV project into the same shape as a USTX one.
+
+    Notes live under each track's mainGroup, and positions are blicks rather than ticks.
+    """
+    import json
+
+    data = json.loads(path.read_text(encoding="utf-8-sig"))
+    tracks = []
+    for track in data.get("tracks") or []:
+        notes = ((track.get("mainGroup") or {}).get("notes")) or []
+        if not notes:
+            continue
+        tracks.append(
+            {
+                "trackName": track.get("name") or "track",
+                "notes": [
+                    {
+                        "position": note["onset"] / BLICKS_PER_QUARTER * HOST_PPQ,
+                        "duration": note["duration"] / BLICKS_PER_QUARTER * HOST_PPQ,
+                        "tone": note.get("pitch", 60),
+                        "lyric": note.get("lyrics", ""),
+                    }
+                    for note in notes
+                ],
+            }
+        )
+    return {"tracks": tracks, "ppq": HOST_PPQ}
+
+
+def load_project(path: Path) -> dict:
+    if path.suffix.lower() == ".svp":
+        return load_svp(path)
+    return yaml.safe_load(path.read_text(encoding="utf-8-sig"))
+
+def build_script(path: Path, voice: str, window: tuple[float, float] | None = None,
+                 only_track: int | None = None) -> str:
+    ustx = load_project(path)
     if not isinstance(ustx, dict):
         raise SystemExit(f"{path}: not a USTX project")
 
@@ -78,6 +118,8 @@ def build_script(path: Path, voice: str, window: tuple[float, float] | None = No
     ]
 
     for index, track in enumerate(tracks):
+        if only_track is not None and index != only_track:
+            continue
         rows = note_rows(track, ppq)
         if window is not None:
             # The host synthesises a bounded number of blocks per call, so long projects are
@@ -118,6 +160,11 @@ def main() -> None:
         at = args.index("--voice")
         voice = args[at + 1]
         del args[at:at + 2]
+    only_track = None
+    if "--track" in args:
+        at = args.index("--track")
+        only_track = int(args[at + 1])
+        del args[at:at + 2]
     window = None
     if "--window" in args:
         at = args.index("--window")
@@ -127,7 +174,7 @@ def main() -> None:
         raise SystemExit(
             "usage: ustx-to-script.py <project.ustx> [--voice yanxi|sinsy-jp] [--window from to]"
         )
-    sys.stdout.write(build_script(Path(args[0]), voice, window))
+    sys.stdout.write(build_script(Path(args[0]), voice, window, only_track))
 
 
 if __name__ == "__main__":
