@@ -15,6 +15,12 @@ public sealed record MutaVoice(
 {
     /// <summary>声音体的字节数，用于在日志/描述里给出可核对的规模。</summary>
     public double BankMegabytes => BankBytes / (1024.0 * 1024.0);
+
+    /// <summary>True for the packaged Japanese voice: a plain HTS voice, no MUTA bank.</summary>
+    public bool IsJapanese => Id.StartsWith("sinsy", StringComparison.Ordinal);
+
+    /// <summary>A bank makes the sampled path possible; without one the model sings.</summary>
+    public bool HasBank => !string.IsNullOrEmpty(BankFile) && File.Exists(BankFile);
 }
 
 /// <summary>

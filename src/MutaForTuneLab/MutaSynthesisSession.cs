@@ -155,15 +155,19 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
         // Freeze the continuation decision with the snapshot: the worker must not touch
         // live notes, and the decision domain is live data.
         var phone = new string[notes.Count];
+        var lyrics = new string[notes.Count];
         for (int i = 0; i < notes.Count; i++)
+        {
             phone[i] = PhoneFor(notes[i].Lyric.Value);
+            lyrics[i] = notes[i].Lyric.Value;
+        }
 
         mRendering.Add(block.Key);
         mStatusChanged.Invoke();
         try
         {
             var result = await Task.Run(
-                () => Render(snapshot, phone, block, cancellation), CancellationToken.None);
+                () => Render(snapshot, phone, lyrics, block, cancellation), CancellationToken.None);
             if (result is null)
                 return;   // cancelled: keep the previous product, say nothing
 
@@ -286,7 +290,7 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
 
     sealed record BlockRender(float[] Audio, IReadOnlyMap<string, SynthesizedSyllable> Phonemes);
 
-    BlockRender? Render(VoiceSynthesisSnapshot snapshot, string[] phones, Block block, CancellationToken cancellation)
+    BlockRender? Render(VoiceSynthesisSnapshot snapshot, string[] phones, string[] lyrics, Block block, CancellationToken cancellation)
     {
         if (cancellation.IsCancellationRequested)
             return null;
@@ -298,7 +302,7 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
             var note = block.Notes[i];
             int startFrame = (int)Math.Round((note.StartTime.Value - block.StartTime) / frameSeconds);
             int frames = Math.Max(1, (int)Math.Round((note.EndTime.Value - note.StartTime.Value) / frameSeconds));
-            notes.Add(new RenderNote(startFrame, frames, note.Pitch.Value, phones[i]));
+            notes.Add(new RenderNote(startFrame, frames, note.Pitch.Value, phones[i], false, lyrics[i]));
         }
 
         int totalFrames = Math.Max(1, (int)Math.Round((block.EndTime - block.StartTime) / frameSeconds));

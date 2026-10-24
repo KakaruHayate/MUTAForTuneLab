@@ -118,6 +118,24 @@ public sealed class MutaVoiceEngine : IVoiceSynthesisEngine, IExtensionSettings
 
     // —— 扫描 ——
 
+    /// <summary>The packaged Japanese voice, or null when its files are missing.</summary>
+    static MutaVoice? BuiltInJapaneseVoice()
+    {
+        string voiceFile = Synthesis.MutaSinsy.VoiceFile;
+        string dictionary = Synthesis.MutaSinsy.DictionaryDirectory;
+        if (!File.Exists(voiceFile) || !Directory.Exists(dictionary))
+            return null;
+
+        return new MutaVoice(
+            Id: "sinsy-jp",
+            Directory: Path.GetDirectoryName(Path.GetDirectoryName(dictionary)) ?? "",
+            VoiceFile: voiceFile,
+            InfFile: "",
+            BankFile: "",
+            DisplayName: "NIT SONG070 F1（日语）",
+            BankBytes: 0);
+    }
+
     void Rescan()
     {
         var logger = TuneLabContext.Global.GetLogger();
@@ -126,6 +144,11 @@ public sealed class MutaVoiceEngine : IVoiceSynthesisEngine, IExtensionSettings
         roots.AddRange(ConfiguredDirs(KeyVoiceDirs));
 
         mVoices = VoiceLibrary.Scan(roots);
+
+        // The Japanese voice ships with the plugin: it is a plain HTS voice with Sinsy's
+        // label builder in front, so it needs no MUTA installation and no bank.
+        if (BuiltInJapaneseVoice() is { } japanese)
+            mVoices = mVoices.Append(japanese).ToList();
 
         mInfos.Clear();
         var layoutItems = new List<VoiceSourceLayoutItem>();

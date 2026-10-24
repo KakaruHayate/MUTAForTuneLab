@@ -52,6 +52,35 @@ public static class BapExpand
         return expanded;
     }
 
+    /// <summary>
+    /// Expands whatever band count the voice predicts. MUTA's own voices use the 26 bands
+    /// above; Sinsy's use 31, and the table does not describe those, so they are spread
+    /// evenly over the bins. That misplaces the noise slightly relative to the mel-spaced
+    /// truth, and is a stopgap until the band edges are read from the voice header.
+    /// </summary>
+    public static double[][] ExpandAny(double[][] bap, int binCount)
+    {
+        int frames = bap.Length;
+        if (frames == 0)
+            return [];
+        int bands = bap[0].Length;
+        if (bands == BandCount && binCount == BinCount)
+            return Expand(bap);
+
+        var expanded = new double[frames][];
+        for (int f = 0; f < frames; f++)
+        {
+            var row = new double[binCount];
+            for (int bin = 0; bin < binCount; bin++)
+            {
+                int band = (int)((long)bin * bands / binCount);
+                row[bin] = bap[f][Math.Min(band, bands - 1)];
+            }
+            expanded[f] = row;
+        }
+        return expanded;
+    }
+
     /// <summary>Decibels to linear aperiodicity, without the engine's curve.</summary>
     public static double ToLinear(double decibels) => Math.Pow(10.0, decibels / 20.0);
 

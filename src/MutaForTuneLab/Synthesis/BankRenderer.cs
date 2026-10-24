@@ -5,7 +5,7 @@ using MutaForTuneLab.Assets;
 namespace MutaForTuneLab.Synthesis;
 
 /// <summary>One note as the assembler needs it: on the model's frame grid, already phonetic.</summary>
-public readonly record struct RenderNote(int StartFrame, int Frames, int Midi, string Phone, bool Rest = false);
+public readonly record struct RenderNote(int StartFrame, int Frames, int Midi, string Phone, bool Rest = false, string Lyric = "");
 
 /// <summary>What the assembler needs from a bank; lets tests feed it directly.</summary>
 public interface IBankSource

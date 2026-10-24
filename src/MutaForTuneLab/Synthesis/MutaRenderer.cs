@@ -51,11 +51,32 @@ public static class MutaRenderer
 
         cancellation.ThrowIfCancellationRequested();
 
-        var score = BuildScore(notes, request.TotalFrames);
-        var labels = LabelBuilder.Build(score);
+        // Two front ends feed the same acoustic model: MUTA's label builder for Chinese,
+        // Sinsy's for Japanese. Both end at the same place -- a list of label lines.
+        IReadOnlyList<string> labels;
+        string enginePath;
+        if (voice.IsJapanese)
+        {
+            var scoreNotes = new List<ScoreNote>(notes.Count);
+            foreach (var note in notes)
+            {
+                scoreNotes.Add(new ScoreNote(
+                    note.StartFrame * FrameSeconds, note.Frames * FrameSeconds, note.Midi, note.Lyric));
+            }
+            var text = MutaSinsy.Labels(scoreNotes, request.TotalFrames * FrameSeconds,
+                MutaSinsy.DictionaryDirectory);
+            if (text is null)
+                throw new InvalidOperationException("the Japanese label builder refused the score");
+            labels = text.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+            enginePath = voice.VoiceFile;
+        }
+        else
+        {
+            labels = LabelBuilder.Build(BuildScore(notes, request.TotalFrames));
+            enginePath = HtsVoice.Load(voice.VoiceFile).EnginePath;
+        }
 
-        var container = HtsVoice.Load(voice.VoiceFile);
-        using var engine = MutaHts.Load(container.EnginePath);
+        using var engine = MutaHts.Load(enginePath);
         engine.Speed = request.Speed;
 
         cancellation.ThrowIfCancellationRequested();

@@ -93,9 +93,9 @@ public static class VocoderPipeline
     /// <summary>26-band aperiodicity to per-bin weights.</summary>
     public static double[][] Aperiodicity(double[][] bap)
     {
-        var ap = BapExpand.Expand(bap);
+        var ap = BapExpand.ExpandAny(bap, Bins);
         for (int f = 0; f < ap.Length; f++)
-            for (int k = 0; k < Bins; k++)
+            for (int k = 0; k < ap[f].Length; k++)
                 ap[f][k] = BapExpand.ToWeight(ap[f][k]);
         return ap;
     }
