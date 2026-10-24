@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using MutaForTuneLab.Assets;
@@ -99,6 +99,28 @@ public static class MutaRenderer
             silence = bank.Silence;
             pitch = CarrierFromNotes(notes, request.TotalFrames);
             frames = request.TotalFrames;
+
+            // The bank answers at its recorded level, several dB under what the model
+            // produces for the same notes. The model defines the level the rest of the chain
+            // was tuned against, so the bank is shifted onto it by the difference of the two
+            // mean log-gains. The timbre still comes from the recordings.
+            double bankGain = 0.0, modelGain = 0.0;
+            int bankFrames = 0, modelFrames = 0;
+            for (int f = 0; f < spectrumMgc.Length; f++)
+                if (!silence[f]) { bankGain += spectrumMgc[f][0]; bankFrames++; }
+            for (int f = 0; f < mgc.Length; f++)
+                if (mgc[f][0] > -8.5) { modelGain += mgc[f][0]; modelFrames++; }
+
+            double offset = bankFrames > 0 && modelFrames > 0
+                ? modelGain / modelFrames - bankGain / bankFrames
+                : 0.0;
+            if (Math.Abs(offset) > 0.01)
+                for (int f = 0; f < spectrumMgc.Length; f++)
+                    spectrumMgc[f][0] += offset;
+
+            TuneLabContext.Global.GetLogger().Debug(
+                $"[MUTA] bank level offset {offset:F3} " +
+                $"(model {modelGain / Math.Max(1, modelFrames):F3}, bank {bankGain / Math.Max(1, bankFrames):F3})");
         }
         else
         {

@@ -37,6 +37,7 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
     readonly MutaVoice mVoice;
     readonly string? mR2Directory;
     readonly string mMelModelPath;
+    readonly PinyinDictionary? mDictionary;
 
     readonly ActionEvent mStatusChanged = new();
     readonly ActionEvent mPhonemesChanged = new();
@@ -73,6 +74,8 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
         TuneLabContext.Global.GetLogger().Debug($"[MUTA] session created for {voice.Id}");
         mR2Directory = r2Directory;
         mMelModelPath = melModelPath;
+        // Lyrics are pinyin for the Chinese chain; the tables live in the MUTA install.
+        mDictionary = PinyinDictionary.TryLoadForVoice(voice.Directory);
     }
 
     public string DefaultLyric => "a";
@@ -366,14 +369,21 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
     }
 
     /// <summary>
-    /// The lyric as a phone. Han and kana need their dictionaries, which are not wired yet,
-    /// so anything unreadable falls back to a vowel instead of failing the note.
+    /// The lyric as a single syllable. Already-phonetic text (pinyin) is taken as written;
+    /// Han goes through the install's tables; anything else falls back to a vowel rather
+    /// than failing the note.
     /// </summary>
-    static string PhoneFor(string lyric)
+    string PhoneFor(string lyric)
     {
         if (string.IsNullOrWhiteSpace(lyric))
             return "a";
-        bool ascii = lyric.All(c => c < 128);
-        return ascii ? lyric.ToLowerInvariant() : "a";
+
+        if (lyric.All(c => c < 128))
+            return lyric.ToLowerInvariant();
+
+        if (mDictionary?.SyllableFor(lyric) is { } syllable)
+            return syllable;
+
+        return "a";
     }
 }
