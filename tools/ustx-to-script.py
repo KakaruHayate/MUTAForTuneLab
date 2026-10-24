@@ -50,15 +50,20 @@ def note_rows(track: dict, ppq: int) -> list[tuple[int, int, int, str]]:
     return rows
 
 
-def build_script(path: Path, voice: str) -> str:
+def build_script(path: Path, voice: str, window: tuple[float, float] | None = None) -> str:
     ustx = yaml.safe_load(path.read_text(encoding="utf-8-sig"))
     if not isinstance(ustx, dict):
         raise SystemExit(f"{path}: not a USTX project")
 
+    # Two dialects are in the wild: OpenUtau's canonical `tracks[]`, and the 0.9 form that
+    # carries `voice_parts[]` instead. Both key the notes identically.
     ppq = int(ustx.get("ppq", 480) or 480)
+    source = ustx.get("voice_parts")
+    if not source:
+        source = ustx.get("tracks")
     tracks = [
         track
-        for track in (ustx.get("tracks") or [])
+        for track in (source or [])
         if isinstance(track, dict) and (track.get("notes") or [])
     ]
     if not tracks:
@@ -74,6 +79,13 @@ def build_script(path: Path, voice: str) -> str:
 
     for index, track in enumerate(tracks):
         rows = note_rows(track, ppq)
+        if window is not None:
+            # The host synthesises a bounded number of blocks per call, so long projects are
+            # rendered a window at a time. Positions are shifted so the window starts at 0.
+            low = int(window[0] * HOST_PPQ * 2)
+            high = int(window[1] * HOST_PPQ * 2)
+            rows = [row for row in rows if low <= row[0] < high]
+            rows = [(row[0] - low, row[1], row[2], row[3]) for row in rows]
         if not rows:
             continue
         span = max(row[0] + row[1] for row in rows)
@@ -106,9 +118,16 @@ def main() -> None:
         at = args.index("--voice")
         voice = args[at + 1]
         del args[at:at + 2]
+    window = None
+    if "--window" in args:
+        at = args.index("--window")
+        window = (float(args[at + 1]), float(args[at + 2]))
+        del args[at:at + 3]
     if not args:
-        raise SystemExit("usage: ustx-to-script.py <project.ustx> [--voice yanxi|sinsy-jp]")
-    sys.stdout.write(build_script(Path(args[0]), voice))
+        raise SystemExit(
+            "usage: ustx-to-script.py <project.ustx> [--voice yanxi|sinsy-jp] [--window from to]"
+        )
+    sys.stdout.write(build_script(Path(args[0]), voice, window))
 
 
 if __name__ == "__main__":

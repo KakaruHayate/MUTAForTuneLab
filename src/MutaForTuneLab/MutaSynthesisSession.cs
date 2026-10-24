@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -51,8 +52,12 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
     readonly ActionEvent mPitchChanged = new();
     readonly ActionEvent mParametersChanged = new();
 
-    readonly Dictionary<string, Product> mProducts = new(StringComparer.Ordinal);
-    readonly HashSet<string> mRendering = new(StringComparer.Ordinal);
+    // The host reads Status and the products while a render is running on another thread, so
+    // these cannot be plain dictionaries: a concurrent read during a resize hands out garbage,
+    // and a real project turned that into a native crash. Rendering is serialised inside
+    // MutaRenderer; these keep the bookkeeping around it safe.
+    readonly ConcurrentDictionary<string, Product> mProducts = new(StringComparer.Ordinal);
+    readonly ConcurrentDictionary<string, byte> mRendering = new(StringComparer.Ordinal);
     IReadOnlyMap<string, SynthesizedSyllable> mPhonemes = new Map<string, SynthesizedSyllable>();
 
     sealed class Product
@@ -146,7 +151,7 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
                 double progress = 0.0;
                 if (mProducts.TryGetValue(block.Key, out var product) && product.Signature == block.Signature)
                     status = SynthesisSegmentStatus.Synthesized;
-                else if (mRendering.Contains(block.Key))
+                else if (mRendering.ContainsKey(block.Key))
                     status = SynthesisSegmentStatus.Synthesizing;
 
                 entries.Add(new SynthesisStatusSegment
@@ -196,7 +201,7 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
             lyrics[i] = notes[i].Lyric.Value;
         }
 
-        mRendering.Add(block.Key);
+        mRendering[block.Key] = 0;
         mStatusChanged.Invoke();
         try
         {
@@ -248,7 +253,7 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
         }
         finally
         {
-            mRendering.Remove(block.Key);
+            mRendering.TryRemove(block.Key, out _);
         }
     }
 
@@ -257,6 +262,13 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
 
     public void Dispose()
     {
+        // A render runs on the thread pool. If the host gives up and tears the extension
+        // down while one is in flight, the next native call lands in an unloaded module and
+        // takes the process with it -- which is what a real project did once the sandbox's
+        // dispatch budget ran out. Give those renders a moment to finish first.
+        for (int waited = 0; waited < 3000 && !mRendering.IsEmpty; waited += 25)
+            Thread.Sleep(25);
+
         foreach (var product in mProducts.Values)
             product.Segment?.Dispose();
         mProducts.Clear();
@@ -566,7 +578,26 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
             return "a";
 
         if (lyric.All(c => c < 128))
-            return lyric.ToLowerInvariant();
+        {
+            // ASCII lyrics reach the model as phones, which is how a romaji project works.
+            // A bare consonant is not singable, though, and asking the model for one does not
+            // fail politely: it crashes inside the native engine. That is how a real project
+            // took the host down, on a note whose lyric was "h".
+            string ascii = new string(lyric.Where(char.IsLetter).ToArray()).ToLowerInvariant();
+            if (ascii.Length == 0)
+                return "a";
+            if (LabelBuilder.SplitSyllable(ascii) is { Final.Length: > 0 })
+                return ascii;
+
+            string withVowel = ascii + "a";
+            if (LabelBuilder.SplitSyllable(withVowel) is { Final.Length: > 0 })
+            {
+                TuneLabContext.Global.GetLogger().Debug(
+                    $"[MUTA] lyric [{lyric}] is not singable, singing [{withVowel}]");
+                return withVowel;
+            }
+            return "a";
+        }
 
         if (mDictionary?.SyllableFor(lyric) is { } syllable)
             return syllable;

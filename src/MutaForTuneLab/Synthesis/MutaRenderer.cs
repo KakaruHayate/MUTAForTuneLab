@@ -69,7 +69,40 @@ public static class MutaRenderer
     /// <summary>The log gain the rest of the chain was tuned against.</summary>
     public const double ReferenceLogGain = -4.5;
 
+    /// <summary>
+    /// Native synthesis runs one call at a time.
+    ///
+    /// The HTS wrapper keeps the engine it is feeding in a process-global while it runs, so
+    /// two overlapping calls hand the WORLD hooks the wrong engine and corrupt its buffers.
+    /// Blocks render in about half their own duration, so serialising them costs nothing.
+    /// </summary>
+    /// <summary>
+    /// One engine per voice file, kept for the life of the process.
+    ///
+    /// Loading a voice costs a 7 MB decode, and doing it once per block was also the last
+    /// thing that happened before the engine started crashing on a real project. Reuse is
+    /// both faster and removes that whole lifecycle from the hot path; the call below resets
+    /// the speed it needs each time.
+    /// </summary>
+    static readonly Dictionary<string, MutaHts> sEngines = new(StringComparer.Ordinal);
+
+    static MutaHts EngineFor(string path)
+    {
+        if (sEngines.TryGetValue(path, out var engine))
+            return engine;
+        engine = MutaHts.Load(path);
+        sEngines[path] = engine;
+        return engine;
+    }
+    static readonly object RenderGate = new();
+
     public static RenderResult Render(RenderRequest request, CancellationToken cancellation)
+    {
+        lock (RenderGate)
+            return RenderCore(request, cancellation);
+    }
+
+    static RenderResult RenderCore(RenderRequest request, CancellationToken cancellation)
     {
         var voice = request.Voice;
         var notes = request.Notes;
@@ -108,10 +141,17 @@ public static class MutaRenderer
             enginePath = HtsVoice.Load(voice.VoiceFile).EnginePath;
         }
 
-        using var engine = MutaHts.Load(enginePath);
+        var engine = EngineFor(enginePath);
         engine.Speed = request.Speed;
 
         cancellation.ThrowIfCancellationRequested();
+
+        // If the native engine ever dies, this line is the last thing written: the exact
+        // phones and lyrics it was asked to sing.
+        if (notes.Count > 0)
+            MutaDiagnostics.Log(
+                "[MUTA] synth " + string.Join("|", notes.Select(n => n.Phone + "@" + n.Midi + ":" + n.Lyric + ":" + n.Frames)));
+
         int frames = engine.Synthesize(labels);
         if (frames <= 0)
             throw new InvalidOperationException("the acoustic model produced no frames");
