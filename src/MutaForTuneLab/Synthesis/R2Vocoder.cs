@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Microsoft.ML.OnnxRuntime;
+using System.Threading;
 using Microsoft.ML.OnnxRuntime.Tensors;
 
 namespace MutaForTuneLab.Synthesis;
@@ -26,8 +27,45 @@ public sealed class R2Vocoder : IDisposable
     /// <summary>The network wants a multiple of 16 frames.</summary>
     const int FrameMultiple = 16;
 
+    /// <summary>
+    /// Serialises everything DirectML touches. The Windows DirectML build of ONNX Runtime
+    /// terminates the process natively if session creation, Run and disposal overlap, so
+    /// the plugin takes this lock around all three — the same rule OpenUtau follows.
+    /// </summary>
+    static readonly object DmlLock = new();
+
+    /// <summary>Set once a DirectML session exists: caching keeps it live after a switch.</summary>
+    static bool sDmlInUse;
+
+    /// <summary>Devices ONNX Runtime reports for the DirectML provider, empty when unavailable.</summary>
+    static readonly Lazy<IReadOnlyList<OrtEpDevice>> DmlDevices =
+        new(FindDmlDevices, LazyThreadSafetyMode.ExecutionAndPublication);
+
+    static IReadOnlyList<OrtEpDevice> FindDmlDevices()
+    {
+        try
+        {
+            return OrtEnv.Instance().GetEpDevices()
+                .Where(device => device.EpName.Contains("dml", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+        catch (Exception)
+        {
+            return Array.Empty<OrtEpDevice>();
+        }
+    }
+
+    /// <summary>Which execution provider a session created now would use.</summary>
+    public static string PreferredProvider
+        => DmlDevices.Value.Count > 0 ? "DirectML" : "CPU";
+
+    /// <summary>Provider this instance actually got.</summary>
+    public string Provider { get; }
     readonly InferenceSession mMel;
-    readonly InferenceSession mVocoder;
+    InferenceSession mVocoder;
+    readonly string mVocoderPath;
+    readonly string mName;
+    readonly int mSampleRate, mHopSize, mFftSize, mMelBins;
     readonly string mInputName;
     readonly string mOutputName;
 
@@ -38,15 +76,19 @@ public sealed class R2Vocoder : IDisposable
     public string Name { get; }
 
     R2Vocoder(InferenceSession mel, InferenceSession vocoder, int sampleRate, int hopSize,
-              int fftSize, int melBins, string name)
+              int fftSize, int melBins, string name, string provider)
     {
         mMel = mel;
         mVocoder = vocoder;
+        mVocoderPath = string.Empty;
+        mName = name;
+        mSampleRate = sampleRate; mHopSize = hopSize; mFftSize = fftSize; mMelBins = melBins;
         SampleRate = sampleRate;
         HopSize = hopSize;
         FftSize = fftSize;
         MelBins = melBins;
         Name = name;
+        Provider = provider;
         mInputName = vocoder.InputMetadata.Keys.First();
         mOutputName = vocoder.OutputMetadata.Keys.First();
     }
@@ -76,23 +118,81 @@ public sealed class R2Vocoder : IDisposable
         if (!File.Exists(melModelPath))
             return null;
 
-        var options = new SessionOptions
-        {
-            GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL,
-            // One sample must be reproducible from the same input.
-            EnableCpuMemArena = false,
-        };
-
         int sampleRate = int.Parse(sampleRateText);
         int hop = int.Parse(hopText);
         int fft = config.TryGetValue("fft_size", out var fftText) ? int.Parse(fftText) : 2048;
         int melBins = config.TryGetValue("num_mel_bins", out var binsText) ? int.Parse(binsText) : 128;
         string name = config.TryGetValue("name", out var nameText) ? nameText : Path.GetFileName(vocoderDirectory);
 
+        // A GPU that cannot run this graph must not cost the whole render: build on
+        // DirectML when it is there, and fall back to CPU if creating the session fails.
+        if (DmlDevices.Value.Count > 0)
+        {
+            sDmlInUse = true;
+            lock (DmlLock)
+            {
+                try
+                {
+                    return Create(melModelPath, modelPath, sampleRate, hop, fft, melBins, name, dml: true);
+                }
+                catch (Exception)
+                {
+                    // fall through to the CPU session below
+                }
+            }
+        }
+        return Create(melModelPath, modelPath, sampleRate, hop, fft, melBins, name, dml: false);
+    }
+
+    static readonly IDisposable NoScope = new NoopScope();
+
+    sealed class NoopScope : IDisposable
+    {
+        public void Dispose() { }
+    }
+
+    sealed class Unlocker : IDisposable
+    {
+        public void Dispose() => Monitor.Exit(DmlLock);
+    }
+
+    /// <summary>Held across session creation, inference and disposal while DirectML is in use.</summary>
+    static IDisposable EnterDmlScope()
+    {
+        if (!Volatile.Read(ref sDmlInUse))
+            return NoScope;
+        Monitor.Enter(DmlLock);
+        return new Unlocker();
+    }
+    static R2Vocoder Create(string melModelPath, string modelPath, int sampleRate, int hop,
+                            int fft, int melBins, string name, bool dml)
+    {
+        // The options must outlive the native session construction: the binding hands the
+        // pointer to native code and never reads it again.
+        using var options = new SessionOptions
+        {
+            GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL,
+        };
+        if (dml)
+        {
+            var device = DmlDevices.Value[0];
+            options.AppendExecutionProvider(
+                OrtEnv.Instance(),
+                new List<OrtEpDevice> { device },
+                new Dictionary<string, string>());
+        }
+
+        // The mel graph uses a Resize node that DirectML rejects with E_INVALIDARG, so it
+        // stays on CPU -- it is 85 KB and costs nothing. The 56 MB vocoder is what needs
+        // the GPU, and it is the one given the DirectML provider.
+        using var cpuOptions = new SessionOptions
+        {
+            GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL,
+        };
         return new R2Vocoder(
-            new InferenceSession(melModelPath, options),
+            new InferenceSession(melModelPath, cpuOptions),
             new InferenceSession(modelPath, options),
-            sampleRate, hop, fft, melBins, name);
+            sampleRate, hop, fft, melBins, name, dml ? "DirectML" : "CPU");
     }
 
     /// <summary>
@@ -106,6 +206,7 @@ public sealed class R2Vocoder : IDisposable
         int frames = f0.Length;
         if (frames == 0)
             return [];
+        using var dmlScope = EnterDmlScope();
 
         double targetFrameMs = HopSize * 1000.0 / SampleRate;
         var (targetSp, targetAp, targetF0) = RateConversion.Convert(
@@ -175,6 +276,7 @@ public sealed class R2Vocoder : IDisposable
 
     public void Dispose()
     {
+        using var dmlScope = EnterDmlScope();
         mMel.Dispose();
         mVocoder.Dispose();
     }
