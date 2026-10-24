@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Regression probe for the .inf parser. It compiles the parser source directly
+       (link) so it has no dependency on the TuneLab SDK: this must run anywhere.
+       It prints a canonical dump plus its SHA-256; tools/verify-inf.ps1 compares that
+       against the Python reference implementation on the same file. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>InfProbe</RootNamespace>
+    <AssemblyName>InfProbe</AssemblyName>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="..\..\src\MutaForTuneLab\Assets\InfFile.cs" Link="InfFile.cs" />
+  </ItemGroup>
+
+</Project>
