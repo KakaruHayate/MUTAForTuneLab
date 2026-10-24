@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using MutaForTuneLab.Assets;
@@ -8,8 +8,6 @@ using TuneLab.SDK;
 namespace MutaForTuneLab.Synthesis;
 
 /// <summary>One note as the renderer needs it: on the model's frame grid, already phonetic.</summary>
-public readonly record struct RenderNote(int StartFrame, int Frames, int Midi, string Phone, bool Rest = false);
-
 /// <summary>Everything one render needs, pinned before the worker starts.</summary>
 public sealed class RenderRequest
 {

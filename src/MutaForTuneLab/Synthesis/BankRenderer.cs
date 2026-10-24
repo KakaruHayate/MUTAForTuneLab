@@ -1,103 +1,20 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using MutaForTuneLab.Assets;
 
 namespace MutaForTuneLab.Synthesis;
 
-/// <summary>
-/// The recording bank: a flat float file plus the index that says which frames belong to
-/// which context.
-///
-/// The file is not read whole — it is around 94 MB per voice and a song touches a fraction
-/// of it. Items are read on demand and cached by identity, so the same syllable in the same
-/// context costs one seek per session rather than one per note.
-/// </summary>
-public sealed class BankAssets
+/// <summary>One note as the assembler needs it: on the model's frame grid, already phonetic.</summary>
+public readonly record struct RenderNote(int StartFrame, int Frames, int Midi, string Phone, bool Rest = false);
+
+/// <summary>What the assembler needs from a bank; lets tests feed it directly.</summary>
+public interface IBankSource
 {
-    /// <summary>Items kept before the cache is cleared. A song reuses contexts heavily.</summary>
-    const int CacheLimit = 512;
-
-    readonly string mBankPath;
-    readonly Dictionary<InfItem, (double[][] Mgc, double[][] Bap)> mCache = new();
-
-    public InfFile Info { get; }
-    public IReadOnlyDictionary<string, List<InfItem>> Groups { get; }
-    public int FrameBytes => (Info.MgcOrder + Info.BapOrder) * 4;
-
-    BankAssets(InfFile info, string bankPath)
-    {
-        Info = info;
-        mBankPath = bankPath;
-
-        var groups = new Dictionary<string, List<InfItem>>(StringComparer.Ordinal);
-        foreach (var group in info.Groups)
-        {
-            if (groups.TryGetValue(group.Name, out var existing))
-                existing.AddRange(group.Items);
-            else
-                groups[group.Name] = new List<InfItem>(group.Items);
-        }
-        Groups = groups;
-    }
-
-    public static BankAssets Load(MutaVoice voice)
-    {
-        var info = InfFile.Load(voice.InfFile);
-        info.ValidateBank(new FileInfo(voice.BankFile).Length);
-        return new BankAssets(info, voice.BankFile);
-    }
-
-    /// <summary>The MGC and BAP frames of one recorded context.</summary>
-    public (double[][] Mgc, double[][] Bap) Streams(InfItem item)
-    {
-        if (mCache.TryGetValue(item, out var cached))
-            return cached;
-        if (mCache.Count >= CacheLimit)
-            mCache.Clear();
-
-        int frames = item.FrameCount;
-        int mgcOrder = Info.MgcOrder;
-        int bapOrder = Info.BapOrder;
-        int count = frames * (mgcOrder + bapOrder);
-
-        var buffer = new double[count];
-        using (var stream = new FileStream(mBankPath, FileMode.Open, FileAccess.Read, FileShare.Read))
-        {
-            stream.Seek(item.BankOffset, SeekOrigin.Begin);
-            var bytes = new byte[count * 4];
-            int read = 0;
-            while (read < bytes.Length)
-            {
-                int got = stream.Read(bytes, read, bytes.Length - read);
-                if (got <= 0)
-                    throw new InvalidDataException($"bank ends inside item {item.Current}");
-                read += got;
-            }
-            // The file is float32; block-copying those bytes into a double[] would
-            // reinterpret the bit patterns rather than convert them.
-            var floats = new float[count];
-            Buffer.BlockCopy(bytes, 0, floats, 0, bytes.Length);
-            for (int i = 0; i < count; i++)
-                buffer[i] = floats[i];
-        }
-
-        var mgc = new double[frames][];
-        var bap = new double[frames][];
-        for (int f = 0; f < frames; f++)
-        {
-            mgc[f] = new double[mgcOrder];
-            Array.Copy(buffer, f * mgcOrder, mgc[f], 0, mgcOrder);
-            bap[f] = new double[bapOrder];
-            Array.Copy(buffer, frames * mgcOrder + f * bapOrder, bap[f], 0, bapOrder);
-        }
-
-        var result = (mgc, bap);
-        mCache[item] = result;
-        return result;
-    }
+    int MgcOrder { get; }
+    int BapOrder { get; }
+    IReadOnlyDictionary<string, List<InfItem>> Groups { get; }
+    (double[][] Mgc, double[][] Bap) Streams(InfItem item);
 }
-
 /// <summary>The assembled acoustic parameters for one span.</summary>
 public sealed record BankResult(double[][] Mgc, double[][] Bap, bool[] Silence);
 
@@ -137,15 +54,16 @@ public static class BankRenderer
     }
 
     public static BankResult Assemble(
-        BankAssets assets, IReadOnlyList<RenderNote> notes, int totalFrames, int bankPitchCode = 0)
+        IBankSource assets, IReadOnlyList<RenderNote> notes, int totalFrames, int bankPitchCode = 0)
     {
-        int mgcOrder = assets.Info.MgcOrder;
-        int bapOrder = assets.Info.BapOrder;
+        int mgcOrder = assets.MgcOrder;
+        int bapOrder = assets.BapOrder;
         var mgc = NewBuffer(totalFrames, mgcOrder);
         var bap = NewBuffer(totalFrames, bapOrder);
         var silence = new bool[totalFrames];
         Array.Fill(silence, true);
 
+        int consSlots = 0, vowelSlots = 0, missedSlots = 0;
         var state = new NoteAssemblyState();
         string previousPhone = "sil";
 
@@ -174,12 +92,20 @@ public static class BankRenderer
 
             var next = index + 1 < notes.Count ? notes[index + 1] : (RenderNote?)null;
             int nextConsonantFrames = 0;
+            string? nextConsonant = null;
             if (next is { } following && !following.Rest)
             {
                 var nextSplit = LabelBuilder.SplitSyllable(following.Phone);
                 if (nextSplit?.Initial is { } nextInitial)
+                {
                     nextConsonantFrames = Math.Min(TargetFrames(nextInitial), following.Frames);
+                    nextConsonant = nextInitial;
+                }
             }
+
+            // A vowel has no left-context class of its own, so the selector refuses it as a
+            // right context. What the vowel runs into is the next consonant, or a break.
+            string rightContext = nextConsonant ?? "sil";
 
             int cursor = note.StartFrame;
             int previousDuration = 0;
@@ -210,6 +136,7 @@ public static class BankRenderer
                         item.PrefixFrames, item.CoreFrames, item.SuffixFrames,
                         resized.TargetCore, resized.LeftExtension, resized.RightExtension);
                     BankAssembler.WriteNoteBlock(mgc, bap, block, cursor, resized);
+                    consSlots++;
                     MarkVoiced(silence, cursor, cursor + consonantFrames);
                     cursor += consonantFrames;
                     previousDuration = consonantFrames;
@@ -229,8 +156,7 @@ public static class BankRenderer
                 state: state);
 
             var vowelItem = BankContext.SelectNoteItem(assets.Groups, final, previousPhone,
-                next is { } after ? after.Phone : "sil",
-                vowelPlan.TargetCore, PitchFor(note, bankPitchCode), vowelClass);
+                rightContext, vowelPlan.TargetCore, PitchFor(note, bankPitchCode), vowelClass);
             if (vowelItem is not null)
             {
                 var (itemMgc, itemBap) = assets.Streams(vowelItem);
@@ -238,12 +164,19 @@ public static class BankRenderer
                     vowelItem.PrefixFrames, vowelItem.CoreFrames, vowelItem.SuffixFrames,
                     vowelPlan.TargetCore, vowelPlan.LeftExtension, vowelPlan.RightExtension);
                 BankAssembler.WriteNoteBlock(mgc, bap, block, cursor, vowelPlan);
+                vowelSlots++;
                 MarkVoiced(silence, cursor, Math.Min(totalFrames, note.StartFrame + note.Frames));
                 state = vowelPlan.NextState;
+            }
+            else
+            {
+                missedSlots++;
             }
             previousPhone = final;
         }
 
+        TuneLab.SDK.TuneLabContext.Global.GetLogger().Debug(
+            $"[MUTA] bank slots {consSlots} consonant, {vowelSlots} vowel, {missedSlots} missed");
         return new BankResult(mgc, bap, silence);
     }
 
