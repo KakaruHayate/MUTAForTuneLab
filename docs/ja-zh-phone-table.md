@@ -18,9 +18,9 @@
 
 | 统计 | 数量 |
 | --- | ---: |
-| proxy | 96 |
+| proxy | 95 |
 | exact | 48 |
-| hard-join | 8 |
+| hard-join | 9 |
 
 ## 逐项
 
@@ -171,7 +171,7 @@
 | wa | zero-initial | w | ua | proxy |
 | wo | zero-initial | w | uo | proxy |
 | va | foreign | w | ua | proxy |
-| vi | foreign | y | i | proxy |
+| vi | foreign | w | i | hard-join |
 | vu | foreign | w | u | proxy |
 | ve | foreign | w | ui | proxy |
 | vo | foreign | w | uo | proxy |

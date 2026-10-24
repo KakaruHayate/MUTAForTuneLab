@@ -144,7 +144,7 @@ ye,(none),e,y,ie,proxy,zero-initial
 wa,(none),a,w,ua,proxy,zero-initial
 wo,(none),o,w,uo,proxy,zero-initial
 va,v,a,w,ua,proxy,foreign
-vi,v,i,y,i,proxy,foreign
+vi,v,i,w,i,hard-join,foreign
 vu,v,u,w,u,proxy,foreign
 ve,v,e,w,ui,proxy,foreign
 vo,v,o,w,uo,proxy,foreign
