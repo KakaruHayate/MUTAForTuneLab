@@ -1,234 +1,192 @@
-# 日语音素 → MUTA bank 音素 对照表
+# 日语音素 → MUTA bank 音素 对照表（第二版）
 
-bank: `yanxi.inf`，音素组 65 个
+依据：`yanxi.inf` 的真实录音过渡段（`current` 与 `right` 的共现），不是纸面近似。
+
+状态：`exact` = 声韵与实际录音一致；`proxy` = 换用更近的声母/韵母但过渡段真实存在；
+`hard-join` = 该组合在 bank 里没有过渡段，靠引擎回退拼接。
 
 | 统计 | 数量 |
-| --- | --- |
-| exact | 185 |
-| sinsy-source | 1 |
+| --- | ---: |
+| proxy | 67 |
+| exact | 51 |
+| hard-join | 45 |
 
 ## 逐项
 
-| 日语音素 | 起始 | 韵母 | bank 起始 | bank 韵母 | 状态 |
-| --- | --- | --- | --- | --- | --- |
-| a | (none) | a |  | a | exact |
-| i | (none) | i |  | i | exact |
-| u | (none) | u |  | u | exact |
-| e | (none) | e |  | ei | exact |
-| o | (none) | o |  | o | exact |
-| na | n | a | n | a | exact |
-| ni | n | i | n | i | exact |
-| nu | n | u | n | u | exact |
-| ne | n | e | n | ei | exact |
-| no | n | o | n | o | exact |
-| ma | m | a | m | a | exact |
-| mi | m | i | m | i | exact |
-| mu | m | u | m | u | exact |
-| me | m | e | m | ei | exact |
-| mo | m | o | m | o | exact |
-| ra | r | a | r | a | exact |
-| ri | r | i | r | i | exact |
-| ru | r | u | r | u | exact |
-| re | r | e | r | ei | exact |
-| ro | r | o | r | o | exact |
-| wa | w | a | w | a | exact |
-| wi | w | i | w | i | exact |
-| wu | w | u | w | u | exact |
-| we | w | e | w | ei | exact |
-| wo | w | o | w | o | exact |
-| ya | y | a | y | a | exact |
-| yi | y | i | y | i | exact |
-| yu | y | u | y | u | exact |
-| ye | y | e | y | ei | exact |
-| yo | y | o | y | o | exact |
-| va | v | a | v | a | exact |
-| vi | v | i | v | i | exact |
-| vu | v | u | v | u | exact |
-| ve | v | e | v | ei | exact |
-| vo | v | o | v | o | exact |
-| ba | b | a | b | a | exact |
-| bi | b | i | b | i | exact |
-| bu | b | u | b | u | exact |
-| be | b | e | b | ei | exact |
-| bo | b | o | b | o | exact |
-| da | d | a | d | a | exact |
-| di | d | i | d | i | exact |
-| du | d | u | d | u | exact |
-| de | d | e | d | ei | exact |
-| do | d | o | d | o | exact |
-| ga | g | a | g | a | exact |
-| gi | g | i | g | i | exact |
-| gu | g | u | g | u | exact |
-| ge | g | e | g | ei | exact |
-| go | g | o | g | o | exact |
-| ha | h | a | h | a | exact |
-| hi | h | i | h | i | exact |
-| hu | h | u | h | u | exact |
-| he | h | e | h | ei | exact |
-| ho | h | o | h | o | exact |
-| ka | k | a | k | a | exact |
-| ki | k | i | k | i | exact |
-| ku | k | u | k | u | exact |
-| ke | k | e | k | ei | exact |
-| ko | k | o | k | o | exact |
-| pa | p | a | p | a | exact |
-| pi | p | i | p | i | exact |
-| pu | p | u | p | u | exact |
-| pe | p | e | p | ei | exact |
-| po | p | o | p | o | exact |
-| sa | s | a | s | a | exact |
-| si | s | i | s | i | exact |
-| su | s | u | s | u | exact |
-| se | s | e | s | ei | exact |
-| so | s | o | s | o | exact |
-| ta | t | a | t | a | exact |
-| ti | t | i | t | i | exact |
-| tu | t | u | t | u | exact |
-| te | t | e | t | ei | exact |
-| to | t | o | t | o | exact |
-| fa | f | a | f | a | exact |
-| fi | f | i | f | i | exact |
-| fu | f | u | f | u | exact |
-| fe | f | e | f | ei | exact |
-| fo | f | o | f | o | exact |
-| ja | j | a | j | ia | exact |
-| ji | j | i | j | i | exact |
-| ju | j | u | j | v | exact |
-| je | j | e | j | ie | exact |
-| jo | j | o | j | iu | exact |
-| cha | ch | a | q | ia | exact |
-| chi | ch | i | q | i | exact |
-| chu | ch | u | q | v | exact |
-| che | ch | e | q | ie | exact |
-| cho | ch | o | q | iu | exact |
-| sha | sh | a | x | ia | exact |
-| shi | sh | i | x | i | exact |
-| shu | sh | u | x | v | exact |
-| she | sh | e | x | ie | exact |
-| sho | sh | o | x | iu | exact |
-| za | z | a | z | a | exact |
-| zi | z | i | z | i | exact |
-| zu | z | u | z | u | exact |
-| ze | z | e | z | ei | exact |
-| zo | z | o | z | o | exact |
-| ca | c | a | c | a | exact |
-| ci | c | i | c | i | exact |
-| cu | c | u | c | u | exact |
-| ce | c | e | c | ei | exact |
-| co | c | o | c | o | exact |
-| qa | q | a | q | a | exact |
-| qi | q | i | q | i | exact |
-| qu | q | u | q | u | exact |
-| qe | q | e | q | ei | exact |
-| qo | q | o | q | o | exact |
-| xa | x | a | x | a | exact |
-| xi | x | i | x | i | exact |
-| xu | x | u | x | u | exact |
-| xe | x | e | x | ei | exact |
-| xo | x | o | x | o | exact |
-| tsa | ts | a | c | a | exact |
-| tsi | ts | i | c | i | exact |
-| tsu | ts | u | c | u | exact |
-| tse | ts | e | c | ei | exact |
-| tso | ts | o | c | o | exact |
-| kya | ky | a | k | ia | exact |
-| kyi | ky | i | k | i | exact |
-| kyu | ky | u | k | v | exact |
-| kye | ky | e | k | ie | exact |
-| kyo | ky | o | k | iu | exact |
-| gya | gy | a | g | ia | exact |
-| gyi | gy | i | g | i | exact |
-| gyu | gy | u | g | v | exact |
-| gye | gy | e | g | ie | exact |
-| gyo | gy | o | g | iu | exact |
-| nya | ny | a | n | ia | exact |
-| nyi | ny | i | n | i | exact |
-| nyu | ny | u | n | v | exact |
-| nye | ny | e | n | ie | exact |
-| nyo | ny | o | n | iu | exact |
-| hya | hy | a | h | ia | exact |
-| hyi | hy | i | h | i | exact |
-| hyu | hy | u | h | v | exact |
-| hye | hy | e | h | ie | exact |
-| hyo | hy | o | h | iu | exact |
-| bya | by | a | b | ia | exact |
-| byi | by | i | b | i | exact |
-| byu | by | u | b | v | exact |
-| bye | by | e | b | ie | exact |
-| byo | by | o | b | iu | exact |
-| pya | py | a | p | ia | exact |
-| pyi | py | i | p | i | exact |
-| pyu | py | u | p | v | exact |
-| pye | py | e | p | ie | exact |
-| pyo | py | o | p | iu | exact |
-| mya | my | a | m | ia | exact |
-| myi | my | i | m | i | exact |
-| myu | my | u | m | v | exact |
-| mye | my | e | m | ie | exact |
-| myo | my | o | m | iu | exact |
-| rya | ry | a | r | ia | exact |
-| ryi | ry | i | r | i | exact |
-| ryu | ry | u | r | v | exact |
-| rye | ry | e | r | ie | exact |
-| ryo | ry | o | r | iu | exact |
-| tya | ty | a | t | ia | exact |
-| tyi | ty | i | t | i | exact |
-| tyu | ty | u | t | v | exact |
-| tye | ty | e | t | ie | exact |
-| tyo | ty | o | t | iu | exact |
-| dya | dy | a | d | ia | exact |
-| dyi | dy | i | d | i | exact |
-| dyu | dy | u | d | v | exact |
-| dye | dy | e | d | ie | exact |
-| dyo | dy | o | d | iu | exact |
-| sha | sh | a | x | ia | exact |
-| shi | sh | i | x | i | exact |
-| shu | sh | u | x | v | exact |
-| she | sh | e | x | ie | exact |
-| sho | sh | o | x | iu | exact |
-| cha | ch | a | q | ia | exact |
-| chi | ch | i | q | i | exact |
-| chu | ch | u | q | v | exact |
-| che | ch | e | q | ie | exact |
-| cho | ch | o | q | iu | exact |
-| ja | j | a | j | ia | exact |
-| ji | j | i | j | i | exact |
-| ju | j | u | j | v | exact |
-| je | j | e | j | ie | exact |
-| jo | j | o | j | iu | exact |
-| N | N |  | (sinsy 源) | (sinsy 源) | sinsy-source |
+| 日语音素 | 类别 | bank 起始 | bank 韵母 | 状态 |
+| --- | --- | --- | --- | --- |
+| N | nasal | — | en | exact |
+| a | vowel | — | a | exact |
+| i | vowel | — | i | exact |
+| u | vowel | — | u | exact |
+| e | vowel | — | ei | exact |
+| o | vowel | — | o | exact |
+| ka | plain | k | a | exact |
+| ku | plain | k | u | exact |
+| ke | plain | k | ei | hard-join |
+| ko | plain | k | o | hard-join |
+| ga | plain | g | a | exact |
+| gu | plain | g | u | exact |
+| ge | plain | g | ei | exact |
+| go | plain | g | o | hard-join |
+| ha | plain | h | a | exact |
+| hu | plain | h | u | exact |
+| he | plain | h | ei | exact |
+| ho | plain | h | o | hard-join |
+| ba | plain | b | a | exact |
+| bi | plain | b | i | exact |
+| bu | plain | b | u | exact |
+| be | plain | b | ei | exact |
+| bo | plain | b | o | hard-join |
+| pa | plain | p | a | exact |
+| pi | plain | p | i | exact |
+| pu | plain | p | u | exact |
+| pe | plain | p | ei | exact |
+| po | plain | p | o | exact |
+| ma | plain | m | a | exact |
+| mi | plain | m | i | exact |
+| mu | plain | m | u | exact |
+| me | plain | m | ei | exact |
+| mo | plain | m | o | exact |
+| na | plain | n | a | exact |
+| ni | plain | n | i | exact |
+| nu | plain | n | u | exact |
+| ne | plain | n | ei | exact |
+| no | plain | n | o | hard-join |
+| fa | plain | f | a | exact |
+| fi | plain | f | i | hard-join |
+| fu | plain | f | u | exact |
+| fe | plain | f | ei | exact |
+| fo | plain | f | o | exact |
+| sa | plain | s | a | exact |
+| si | plain | s | i | hard-join |
+| su | plain | s | u | exact |
+| se | plain | s | ei | hard-join |
+| so | plain | s | o | hard-join |
+| za | plain | z | a | exact |
+| zi | plain | z | i | hard-join |
+| zu | plain | z | u | exact |
+| ze | plain | z | ei | exact |
+| zo | plain | z | o | hard-join |
+| ta | plain | t | a | exact |
+| ti | plain | t | i | exact |
+| tu | plain | t | u | exact |
+| te | plain | t | ei | hard-join |
+| to | plain | t | o | hard-join |
+| da | plain | d | a | exact |
+| di | plain | d | i | exact |
+| du | plain | d | u | exact |
+| de | plain | d | ei | exact |
+| do | plain | d | o | hard-join |
+| ra | plain | l | a | proxy |
+| ri | plain | l | i | proxy |
+| ru | plain | l | u | proxy |
+| re | plain | l | ei | proxy |
+| ro | plain | l | o | hard-join |
+| wa | plain | w | a | hard-join |
+| wi | plain | w | i | hard-join |
+| wu | plain | w | u | exact |
+| we | plain | w | ei | hard-join |
+| wo | plain | w | o | hard-join |
+| ya | plain | y | a | hard-join |
+| yi | plain | y | i | exact |
+| yu | plain | y | u | hard-join |
+| ye | plain | y | ei | hard-join |
+| yo | plain | y | o | hard-join |
+| tsa | plain | c | a | proxy |
+| tsi | plain | c | i | hard-join |
+| tsu | plain | c | u | proxy |
+| tse | plain | c | ei | hard-join |
+| tso | plain | c | o | hard-join |
+| cha | plain | q | a | hard-join |
+| chi | plain | q | i | proxy |
+| chu | plain | q | u | hard-join |
+| che | plain | q | ei | hard-join |
+| cho | plain | q | o | hard-join |
+| sha | plain | x | a | hard-join |
+| shi | plain | x | i | proxy |
+| shu | plain | x | u | hard-join |
+| she | plain | x | ei | hard-join |
+| sho | plain | x | o | hard-join |
+| ja | plain | q | a | hard-join |
+| ji | plain | q | i | proxy |
+| ju | plain | q | u | hard-join |
+| je | plain | q | ei | hard-join |
+| jo | plain | q | o | hard-join |
+| kya | palatalized | q | ia | proxy |
+| kyi | palatalized | q | i | proxy |
+| kyu | palatalized | q | iu | proxy |
+| kye | palatalized | q | ie | proxy |
+| kyo | palatalized | q | iu | proxy |
+| gya | palatalized | j | ia | proxy |
+| gyi | palatalized | j | i | proxy |
+| gyu | palatalized | j | iu | proxy |
+| gye | palatalized | j | ie | proxy |
+| gyo | palatalized | j | iu | proxy |
+| hya | palatalized | x | ia | proxy |
+| hyi | palatalized | x | i | proxy |
+| hyu | palatalized | x | iu | proxy |
+| hye | palatalized | x | ie | proxy |
+| hyo | palatalized | x | iu | proxy |
+| nya | palatalized | n | ia | hard-join |
+| nyi | palatalized | n | i | proxy |
+| nyu | palatalized | n | iu | proxy |
+| nye | palatalized | n | ie | proxy |
+| nyo | palatalized | n | iu | proxy |
+| mya | palatalized | m | ia | hard-join |
+| myi | palatalized | m | i | proxy |
+| myu | palatalized | m | iu | proxy |
+| mye | palatalized | m | ie | proxy |
+| myo | palatalized | m | iu | proxy |
+| bya | palatalized | b | ia | hard-join |
+| byi | palatalized | b | i | proxy |
+| byu | palatalized | b | iu | hard-join |
+| bye | palatalized | b | ie | proxy |
+| byo | palatalized | b | ie | proxy |
+| pya | palatalized | p | ia | hard-join |
+| pyi | palatalized | p | i | proxy |
+| pyu | palatalized | p | iu | hard-join |
+| pye | palatalized | p | ie | proxy |
+| pyo | palatalized | p | ie | proxy |
+| rya | palatalized | l | ia | proxy |
+| ryi | palatalized | l | i | proxy |
+| ryu | palatalized | l | iu | proxy |
+| rye | palatalized | l | ie | proxy |
+| ryo | palatalized | l | iu | proxy |
+| tya | palatalized | q | ia | proxy |
+| tyi | palatalized | q | i | proxy |
+| tyu | palatalized | q | iu | proxy |
+| tye | palatalized | q | ie | proxy |
+| tyo | palatalized | q | iu | proxy |
+| dya | palatalized | j | ia | proxy |
+| dyi | palatalized | j | i | proxy |
+| dyu | palatalized | j | iu | proxy |
+| dye | palatalized | j | ie | proxy |
+| dyo | palatalized | j | iu | proxy |
+| sha | palatalized | x | ia | proxy |
+| shi | palatalized | x | i | proxy |
+| shu | palatalized | x | iu | proxy |
+| she | palatalized | x | ie | proxy |
+| sho | palatalized | x | iu | proxy |
+| cha | palatalized | q | ia | proxy |
+| chi | palatalized | q | i | proxy |
+| chu | palatalized | q | iu | proxy |
+| che | palatalized | q | ie | proxy |
+| cho | palatalized | q | iu | proxy |
+| ja | palatalized | j | ia | proxy |
+| ji | palatalized | j | i | exact |
+| ju | palatalized | j | iu | proxy |
+| je | palatalized | j | ie | proxy |
+| jo | palatalized | j | iu | proxy |
 
-## 三个 bank 的音素表
+## 生成说明
 
-`yanxi`、`hupo`、`weiyang` 的 **65 个组名完全相同**，`MGC 50 / BAP 26` 也一致，
-只有条目数不同：
+本表由 `build/gen-table2.py` 从 `yanxi.inf` 的实际录音索引生成，
+判据是**过渡段是否存在**：声母组的 `right` 或韵母组的 `left` 命中即算存在（双向查）。
 
-| bank | 组数 | 条目数 |
-| --- | ---: | ---: |
-| yanxi | 65 | 3,242 |
-| hupo | 65 | 4,796 |
-| weiyang | 65 | 22,560 |
+`hard-join` 的那一批不是漏配，而是**普通话里根本没有这个音节**：
+`ko / ro / si / se / so / te / to / do / yo / wa / wo / zi / zo …`
+日语有、中文没有，任何跨语言映射都只能靠引擎按音类回退。
+其中 `k/g/h + i 系` 更特殊：き是 `ky+i`，所以走的是拗音行而不是 `k+i`。
 
-所以本表对三个 bank 通用。
-
-## 四个特殊组：ga / ge / ger / go
-
-它们**不是音素，是整音节单元**：`current` 字段就是整个音节。
-
-| 组 | yanxi | hupo | weiyang | 语境示例 |
-| --- | ---: | ---: | ---: | --- |
-| ga | 17 | 30 | 473 | `sp|a`、`sil|a` |
-| ge | 12 | 24 | 317 | `sp|e`、`sp|ei` |
-| ger | 6 | 6 | 150 | `sp|er` |
-| go | 4 | 18 | 162 | `sp|ou` |
-
-是给感叹词和儿化音准备的整体录音。映射表不会产出这些名字，装配时也不应选中它们。
-
-## 两个舌尖元音变体：ib / if
-
-| 组 | 条目 | 左邻 | 说明 |
-| --- | ---: | --- | --- |
-| ib | 16 | `zh` | 知/吃/诗/日 的元音（舌尖后） |
-| if | 12 | `c` | 资/次/思 的元音（舌尖前） |
-
-日语的 `sh→x`、`ch→q`、`j` 都是舌面音，配普通 `i`，**不受这两个变体影响**。
+**N** 取 `en`（无起始）：中文 `en` 的前半极短、后半是稳定鼻音，拉长时最接近独立拨音。
