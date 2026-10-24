@@ -1,0 +1,22 @@
+﻿diff --git a/lib/HTS_gstream.c b/lib/HTS_gstream.c
+index f4bf5cf..41b07ab 100644
+--- a/lib/HTS_gstream.c
++++ b/lib/HTS_gstream.c
+@@ -125,7 +125,7 @@ HTS_Boolean HTS_GStreamSet_create(HTS_GStreamSet * gss, HTS_PStreamSet * pss, si
+       HTS_GStreamSet_clear(gss);
+       return FALSE;
+    }
+-   if (gss->nstream >= 3 && gss->gstream[2].vector_length % 2 == 0) {
++   if (gss->nstream >= 3 && gss->gstream[gss->nstream - 1].vector_length % 2 == 0) {
+       HTS_error(1, "HTS_GStreamSet_create: The number of low-pass filter coefficient should be odd numbers.");
+       HTS_GStreamSet_clear(gss);
+       return FALSE;
+@@ -202,7 +202,7 @@ HTS_Boolean HTS_GStreamSet_create_WORLD(HTS_GStreamSet * gss, HTS_PStreamSet * p
+       HTS_GStreamSet_clear(gss);
+       return FALSE;
+    }
+-   if (gss->nstream >= 3 && gss->gstream[2].vector_length % 2 == 0) {
++   if (gss->nstream >= 3 && gss->gstream[gss->nstream - 1].vector_length % 2 == 0) {
+       HTS_error(1, "HTS_GStreamSet_create_WORLD: The number of low-pass filter coefficient should be odd numbers.\n");
+       HTS_GStreamSet_clear(gss);
+       return FALSE;

@@ -1,0 +1,22 @@
+﻿diff --git a/lib/HTS_pstream.c b/lib/HTS_pstream.c
+index 48cc18d..a69969f 100644
+--- a/lib/HTS_pstream.c
++++ b/lib/HTS_pstream.c
+@@ -317,6 +317,17 @@ HTS_Boolean HTS_PStreamSet_create(HTS_PStreamSet * pss, HTS_SStreamSet * sss, do
+          pst->length = pss->total_frame;
+          pst->msd_flag = NULL;
+       }
++      /* MUTA PATCH: per-note MSD rule.  Stock HTS decides the MSD split from the
++         model's per-state msd values only; the MUTA engine overrides the flag per
++         note, and that override also changes pst->length.  The hook is provided by
++         the wrapper and is scoped to the handle being synthesised. */
++      {
++         extern int muta_hts_msd_active(void);
++         extern void muta_hts_msd_apply(HTS_SStreamSet *, size_t, HTS_Boolean *,
++                                        double, size_t, size_t *);
++         if (pst->msd_flag != NULL && muta_hts_msd_active())
++            muta_hts_msd_apply(sss, i, pst->msd_flag, msd_threshold[i], pss->total_frame, &pst->length);
++      }
+       pst->vector_length = HTS_SStreamSet_get_vector_length(sss, i);
+       pst->width = HTS_SStreamSet_get_window_max_width(sss, i) * 2 + 1; /* band width of R */
+       pst->win_size = HTS_SStreamSet_get_window_size(sss, i);

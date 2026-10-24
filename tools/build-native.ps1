@@ -1,0 +1,90 @@
+#Requires -Version 5.1
+<#
+.SYNOPSIS
+  Build the native libraries into the package folder.
+
+.DESCRIPTION
+  Today this builds muta_hts (the HTS engine plus our wrapper). worldline and the
+  Sinsy front end join it as their phases land.
+
+  The vendored HTS tree is never compiled in place: it is copied to a scratch
+  directory and the patches in third_party/hts_engine_API/patches are applied there,
+  so the checked-in sources stay byte-identical to upstream and the local changes
+  stay limited to a reviewable diff.
+
+  ASCII-only on purpose: Windows PowerShell 5.1 reads BOM-less .ps1 files using the
+  ANSI code page.
+
+.PARAMETER Configuration
+  Release (default) or Debug.
+
+.PARAMETER KeepScratch
+  Do not delete build\native before preparing sources.
+
+.EXAMPLE
+  powershell -ExecutionPolicy Bypass -File tools\build-native.ps1
+#>
+[CmdletBinding()]
+param(
+    [ValidateSet("Release", "Debug")]
+    [string]$Configuration = "Release",
+    [switch]$KeepScratch
+)
+
+$ErrorActionPreference = "Stop"
+$repo = Split-Path -Parent $PSScriptRoot
+$vendored = Join-Path $repo "third_party\hts_engine_API"
+$scratch = Join-Path $repo "build\native"
+$source = Join-Path $scratch "hts_src"
+$buildDir = Join-Path $scratch "hts_build"
+$package = Join-Path $repo "artifacts\package"
+
+if (-not $KeepScratch -and (Test-Path $scratch)) {
+    Remove-Item -LiteralPath $scratch -Recurse -Force
+}
+New-Item -ItemType Directory -Force -Path $scratch, $package | Out-Null
+
+# --- 1. sources: copy upstream, then patch the copy ---
+Write-Host "preparing patched HTS sources..."
+Copy-Item -LiteralPath $vendored -Destination $source -Recurse -Force
+Get-ChildItem (Join-Path $vendored "patches") -Filter *.patch | Sort-Object Name | ForEach-Object {
+    Write-Host ("  applying {0}" -f $_.Name)
+    & git -C $source apply -p1 $_.FullName
+    if ($LASTEXITCODE -ne 0) { throw ("git apply failed on {0}" -f $_.Name) }
+}
+
+# --- 2. configure ---
+Write-Host "configuring..."
+$generator = $null
+foreach ($candidate in @("Visual Studio 18 2026", "Visual Studio 17 2022", "Ninja")) {
+    $known = (& cmake --help 2>&1 | Select-String -SimpleMatch $candidate)
+    if ($known) { $generator = $candidate; break }
+}
+if (-not $generator) { throw "no usable CMake generator found" }
+Write-Host ("  generator: {0}" -f $generator)
+
+$configureArgs = @(
+    "-S", (Join-Path $repo "src\native\hts"),
+    "-B", $buildDir,
+    "-G", $generator,
+    ("-DHTS_SRC=" + $source)
+)
+if ($generator -like "Visual Studio*") { $configureArgs += @("-A", "x64") }
+
+& cmake @configureArgs
+if ($LASTEXITCODE -ne 0) { throw "cmake configure failed" }
+
+# --- 3. build ---
+Write-Host "building..."
+& cmake --build $buildDir --config $Configuration
+if ($LASTEXITCODE -ne 0) { throw "cmake build failed" }
+
+# --- 4. copy the artifacts next to the managed plugin ---
+$built = Join-Path $buildDir $Configuration
+if (-not (Test-Path $built)) { $built = $buildDir }
+$dll = Get-ChildItem $built -Filter "muta_hts.dll" -Recurse | Select-Object -First 1
+if (-not $dll) { throw "muta_hts.dll not found under $built" }
+Copy-Item -LiteralPath $dll.FullName -Destination (Join-Path $package "muta_hts.dll") -Force
+
+Write-Host ""
+Write-Host ("wrote {0} ({1:N0} bytes)" -f (Join-Path $package "muta_hts.dll"), $dll.Length)
