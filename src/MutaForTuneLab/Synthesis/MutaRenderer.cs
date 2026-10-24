@@ -107,6 +107,13 @@ public static class MutaRenderer
         if (frames <= 0)
             throw new InvalidOperationException("the acoustic model produced no frames");
 
+        // The model's own durations, in the order the labels sang them. The bank assembler
+        // stretches recorded contexts to fit these, which is what the original does -- and
+        // what makes the speed control reach the sampled path at all.
+        var phoneFrames = PhoneDurations(labels, engine.StateDurations(), engine.States);
+        MutaDiagnostics.Log($"[MUTA] model frames {frames} speed {request.Speed:F2} phones {phoneFrames.Count} " +
+            $"sum {phoneFrames.Sum()} first {(phoneFrames.Count > 0 ? phoneFrames[0] : 0)}");
+
         int mgcWidth = engine.VectorLength(0);
         int bapWidth = engine.VectorLength(2);
         var mgc = new double[frames][];
@@ -151,7 +158,7 @@ public static class MutaRenderer
             {
                 var assets = BankAssets.Load(voice);
                 bank = BankRenderer.Assemble(assets, notes, request.TotalFrames,
-                    request.BankPitchMode, request.BankPitchOffset, request.BankPitchNote);
+                    request.BankPitchMode, request.BankPitchOffset, request.BankPitchNote, phoneFrames);
             }
             catch (Exception)
             {
@@ -393,6 +400,36 @@ public static class MutaRenderer
         return alphas;
     }
 
+    /// <summary>
+    /// Per-phone durations from the model's state durations, in the order the labels sang
+    /// them. Pauses are dropped because the bank never assembles one.
+    /// </summary>
+    static List<int> PhoneDurations(IReadOnlyList<string> labels, int[] states, int statesPerPhone)
+    {
+        var durations = new List<int>(labels.Count);
+        if (statesPerPhone <= 0 || states.Length < labels.Count * statesPerPhone)
+            return durations;
+
+        for (int i = 0; i < labels.Count; i++)
+        {
+            // "start end <left>-<phone>+<right>=..." -- the phone sits between the first
+            // dash and the plus that follows it.
+            string label = labels[i];
+            int dash = label.IndexOf('-');
+            int plus = dash >= 0 ? label.IndexOf('+', dash + 1) : -1;
+            string phone = dash >= 0 && plus > dash ? label[(dash + 1)..plus] : string.Empty;
+            if (phone.Length == 0 || phone is "sil" or "sp" or "xx")
+                continue;
+
+            int total = 0;
+            int start = i * statesPerPhone;
+            for (int s = 0; s < statesPerPhone; s++)
+                total += states[start + s];
+            if (total > 0)
+                durations.Add(total);
+        }
+        return durations;
+    }
     /// <summary>The model writes an unvoiced sentinel rather than zero.</summary>
     static double[] PitchFromLf0(double[] lf0)
     {

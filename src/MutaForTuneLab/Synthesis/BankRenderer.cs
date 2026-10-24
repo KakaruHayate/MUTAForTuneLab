@@ -54,7 +54,8 @@ public static class BankRenderer
     }
 
     public static BankResult Assemble(
-        IBankSource assets, IReadOnlyList<RenderNote> notes, int totalFrames, string bankPitchMode = "auto", double bankPitchOffset = 0.0, int bankPitchNote = 0)
+        IBankSource assets, IReadOnlyList<RenderNote> notes, int totalFrames, string bankPitchMode = "auto", double bankPitchOffset = 0.0, int bankPitchNote = 0,
+        IReadOnlyList<int>? phoneFrames = null)
     {
         int mgcOrder = assets.MgcOrder;
         int bapOrder = assets.BapOrder;
@@ -64,6 +65,7 @@ public static class BankRenderer
         Array.Fill(silence, true);
 
         int consSlots = 0, vowelSlots = 0, missedSlots = 0;
+        int phoneCursor = 0;
         var picks = new List<string>();
         var state = new NoteAssemblyState();
         string previousPhone = "sil";
@@ -88,7 +90,23 @@ public static class BankRenderer
             string? initial = split?.Initial;
             string final = split?.Final ?? note.Phone;
 
-            int consonantFrames = initial is null ? 0 : Math.Min(TargetFrames(initial), note.Frames);
+            // The onset takes the duration the model gave that phone; the vowel fills the
+            // rest of the note, because a note is as long as the score says it is. Falling
+            // back to the table keeps voices that give us no durations working.
+            int modelConsonant = 0;
+            if (initial is not null)
+            {
+                modelConsonant = TakePhoneFrames(phoneFrames, ref phoneCursor);
+                TakePhoneFrames(phoneFrames, ref phoneCursor);   // the vowel the model sang
+            }
+            else
+            {
+                TakePhoneFrames(phoneFrames, ref phoneCursor);   // a bare vowel is one phone
+            }
+
+            int consonantFrames = initial is null
+                ? 0
+                : Math.Max(1, Math.Min(modelConsonant > 0 ? modelConsonant : TargetFrames(initial), note.Frames));
             int vowelFrames = Math.Max(10, note.Frames - consonantFrames);
 
             var next = index + 1 < notes.Count ? notes[index + 1] : (RenderNote?)null;
@@ -138,7 +156,7 @@ public static class BankRenderer
                         resized.TargetCore, resized.LeftExtension, resized.RightExtension);
                     BankAssembler.WriteNoteBlock(mgc, bap, block, cursor, resized);
                     consSlots++;
-                    if (picks.Count < 8) picks.Add($"{initial}@c{item.PitchCode}#{item.BankOffset}");
+                    if (picks.Count < 8) picks.Add($"{initial}@c{item.PitchCode}#{item.BankOffset}/{consonantFrames}f");
                     MarkVoiced(silence, cursor, cursor + consonantFrames);
                     cursor += consonantFrames;
                     previousDuration = consonantFrames;
@@ -200,6 +218,13 @@ public static class BankRenderer
         return 440.0 * Math.Pow(2.0, (midi - 69) / 12.0);
     }
 
+    /// <summary>One phone's duration from the model, or 0 when the list ran out.</summary>
+    static int TakePhoneFrames(IReadOnlyList<int>? frames, ref int cursor)
+    {
+        if (frames is null || cursor >= frames.Count)
+            return 0;
+        return frames[cursor++];
+    }
     static void MarkVoiced(bool[] silence, int start, int end)
     {
         for (int f = Math.Max(0, start); f < Math.Min(end, silence.Length); f++)
