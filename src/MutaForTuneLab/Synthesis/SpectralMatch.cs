@@ -20,6 +20,57 @@ public static class SpectralMatch
     public const double MaxCorrectionDecibels = 9.0;
 
     /// <summary>
+    /// Aperiodicity moves in smaller steps than the envelope: a few dB here is already the
+    /// difference between a clear and a breathy tone, so the cap is tighter.
+    /// </summary>
+    public const double MaxAperiodicityDecibels = 6.0;
+
+    /// <summary>
+    /// Per-band offset, in decibels, that moves <paramref name="source"/>'s average
+    /// aperiodicity onto <paramref name="target"/>'s.
+    ///
+    /// The envelope is matched first and the noise balance after it, because they are two
+    /// halves of the same thing: the vocoder splits each band into a periodic part and a
+    /// noise part by this curve, so a layer that is 5 dB noisier in the middle will sound
+    /// different however well its envelope matches.
+    /// </summary>
+    public static double[]? BuildAperiodicityOffset(
+        double[][] target, double[][] source, double maxDecibels = MaxAperiodicityDecibels)
+    {
+        var averageTarget = AverageBands(target);
+        var averageSource = AverageBands(source);
+        if (averageTarget is null || averageSource is null)
+            return null;
+
+        var offset = new double[averageTarget.Length];
+        for (int band = 0; band < offset.Length; band++)
+            offset[band] = Math.Clamp(averageTarget[band] - averageSource[band], -maxDecibels, maxDecibels);
+        return offset;
+    }
+
+    static double[]? AverageBands(double[][] bap)
+    {
+        if (bap.Length == 0 || bap[0].Length == 0)
+            return null;
+        int bands = bap[0].Length;
+        var total = new double[bands];
+        int frames = 0;
+        foreach (var frame in bap)
+        {
+            if (frame.Length != bands)
+                return null;
+            for (int band = 0; band < bands; band++)
+                total[band] += frame[band];
+            frames++;
+        }
+        if (frames == 0)
+            return null;
+        for (int band = 0; band < bands; band++)
+            total[band] /= frames;
+        return total;
+    }
+
+    /// <summary>
     /// Per-bin gain that turns <paramref name="source"/>'s average spectrum into
     /// <paramref name="target"/>'s, both normalised to their own mean so the result carries
     /// shape only and never level.

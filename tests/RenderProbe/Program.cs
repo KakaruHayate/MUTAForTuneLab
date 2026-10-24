@@ -128,6 +128,23 @@ static void Aperiodicity(string label, double[][] bap)
     var text = string.Join(" ", sum.Select((v, i) => $"{i}:{v / Math.Max(1, frames):F1}"));
     Console.WriteLine($"  ap {label,-6} {text}");
 }
+// How much can the aperiodicity move the result at all? Push it to both extremes.
+Console.WriteLine();
+Console.WriteLine("aperiodicity lever (bank parameters):");
+{
+    var sp = VocoderPipeline.Power(assembled.Mgc, 0.55, assembled.Silence);
+    foreach (var apDb in new[] { -80.0, 0.0, -20.0, -6.0 })
+    {
+        var bapCopy = assembled.Bap.Select(frame => frame.Select(v => apDb).ToArray()).ToArray();
+        var ap = VocoderPipeline.Aperiodicity(bapCopy);
+        var settings = new VocoderSettings
+        {
+            FftSize = 2048, FramePeriodMs = 5.0, SampleRate = 48000, Backend = VocoderBackend.ContinuousNoise,
+        };
+        var samples = WorldlineVocoder.Synthesize(sp, ap, bankF0, settings, expression);
+        AudioReport($"ap={apDb:F0}dB", samples.Select(v => (float)v).ToArray());
+    }
+}
 static double[] PitchFromLf0(double[] lf0)
 {
     var pitch = new double[lf0.Length];

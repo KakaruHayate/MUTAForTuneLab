@@ -187,6 +187,23 @@ public static class MutaRenderer
             MutaDiagnostics.Log(spectralGain is null
                 ? "[MUTA] spectral match unavailable"
                 : $"[MUTA] spectral match applied, gain {spectralGain.Min():F3}..{spectralGain.Max():F3}");
+
+            // The other half of the same character: how much of each band is noise. The
+            // recordings run several dB more aperiodic through the middle than the model,
+            // and the vocoder splits each band on this curve, so an envelope match alone
+            // leaves the layers sounding different.
+            var aperiodicityOffset = SpectralMatch.BuildAperiodicityOffset(bap, spectrumBap);
+            if (aperiodicityOffset is not null)
+            {
+                for (int f = 0; f < spectrumBap.Length; f++)
+                {
+                    var frame = spectrumBap[f];
+                    for (int band = 0; band < frame.Length && band < aperiodicityOffset.Length; band++)
+                        frame[band] += aperiodicityOffset[band];
+                }
+                MutaDiagnostics.Log(
+                    $"[MUTA] aperiodicity match {aperiodicityOffset.Min():F2}..{aperiodicityOffset.Max():F2} dB");
+            }
         }
         else
         {
