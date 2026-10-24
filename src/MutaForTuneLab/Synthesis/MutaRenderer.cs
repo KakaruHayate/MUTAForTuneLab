@@ -190,6 +190,9 @@ public static class MutaRenderer
                 $"lines={japaneseLabels.Split((char)10).Length} nonpau={CountContent(japaneseLabels)}");
         }
 
+        // Where the kept slice begins, once Sinsy's content window has trimmed it.
+        int contentStartFrame = 0;
+
         if (japaneseLabels is not null
             && MutaSinsy.ContentWindow(japaneseLabels, FrameSeconds) is { } window)
         {
@@ -200,6 +203,7 @@ public static class MutaRenderer
                 mgc = mgc[from..to];
                 bap = bap[from..to];
                 lf0 = lf0[from..to];
+                contentStartFrame = from;
                 frames = to - from;
             }
         }
@@ -283,6 +287,16 @@ public static class MutaRenderer
                 $"model c0 {(mgc.Length > 0 ? modelSum / mgc.Length : 0):F3} source {(bank is null ? "model" : "bank")}");
         }
 
+        // Frames marked voiced that nothing wrote would play as holes with a click at each
+        // edge. Count them here rather than guess.
+        {
+            int holes = 0;
+            for (int f = 0; f < spectrumMgc.Length; f++)
+                if (!silence[f] && spectrumMgc[f][0] == 0.0) holes++;
+            if (holes > 0)
+                MutaDiagnostics.Log($"[MUTA] unwritten voiced frames: {holes} of {spectrumMgc.Length}");
+        }
+
         // Controls, applied where they belong in the chain: energy scales the frame's log
         // gain, husky its aperiodicity, timbre the warping factor used to read the spectrum.
         var alphas = ApplyControls(request, spectrumMgc, spectrumBap, frames);
@@ -306,14 +320,47 @@ public static class MutaRenderer
 
         cancellation.ThrowIfCancellationRequested();
 
-        var audio = new float[output.Samples.Length];
+        // The Japanese chain trims the model's output to where the singing is, so what comes
+        // back is a slice that starts later than the block does. Returning it as if it began
+        // at the block start shifted every Japanese block earlier by up to a second and left a
+        // hard cut at its end -- one click per block, 165 of them across a song. The slice goes
+        // back at its own offset, and the block keeps its full length.
+        int frameSamples = (int)Math.Round(SampleRate * FrameSeconds);
+        int totalSamples = Math.Max(output.Samples.Length, request.TotalFrames * frameSamples);
+        var audio = new float[totalSamples];
         double gain = Math.Pow(10.0, request.GainDecibels / 20.0);
-        for (int i = 0; i < audio.Length; i++)
-            audio[i] = (float)SoftLimit(output.Samples[i] * gain);
+        int origin = contentStartFrame * frameSamples;
+        for (int i = 0; i < output.Samples.Length && origin + i < totalSamples; i++)
+            audio[origin + i] = (float)SoftLimit(output.Samples[i] * gain);
 
-        return new RenderResult(audio, pitch, notes, geometry);
+        // A boundary lands inside a note whenever the song has no rest there, and the two sides
+        // were rendered with different noise, so their phases do not meet. A short equal-power
+        // taper at each edge turns a click into a step nobody hears. Longer blocks make these
+        // rare; this keeps the rare ones quiet.
+        FadeEdges(audio, frameSamples * 2, origin);
+
+        if (contentStartFrame == 0)
+            return new RenderResult(audio, pitch, notes, geometry);
+
+        var blockPitch = new double[request.TotalFrames];
+        for (int f = 0; f < pitch.Length && contentStartFrame + f < blockPitch.Length; f++)
+            blockPitch[contentStartFrame + f] = pitch[f];
+        return new RenderResult(audio, blockPitch, notes, geometry);
     }
 
+    /// <summary>Equal-power taper over the first and last few milliseconds of a block.</summary>
+    static void FadeEdges(float[] audio, int ramp, int skip)
+    {
+        if (ramp <= 0 || audio.Length <= ramp * 2 + skip)
+            return;
+        int start = Math.Max(0, skip);
+        for (int i = 0; i < ramp; i++)
+        {
+            double gain = Math.Sin(Math.PI / 2.0 * i / ramp);
+            audio[start + i] *= (float)gain;
+            audio[audio.Length - 1 - i] *= (float)gain;
+        }
+    }
     static int CountContent(string text)
     {
         int count = 0;

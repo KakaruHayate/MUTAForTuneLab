@@ -29,10 +29,10 @@ namespace MutaForTuneLab;
 public sealed class MutaSynthesisSession : IVoiceSynthesisSession
 {
     /// <summary>Longest block, in seconds. Short enough that one block renders quickly.</summary>
-    const double MaxBlockSeconds = 1.2;
+    const double MaxBlockSeconds = 30.0;
     /// <summary>A gap wider than this starts a new block.</summary>
     const double GapSeconds = 0.4;
-    const int MaxNotesPerBlock = 12;
+    const int MaxNotesPerBlock = 240;
     /// <summary>Silence kept before the first note of a block.</summary>
     const double LeadSeconds = 0.05;
     /// <summary>Silence kept after the last note of a block.</summary>
