@@ -350,6 +350,8 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
             Voice = mVoice,
             Notes = notes,
             TotalFrames = totalFrames,
+            // Where the block sits, so its noise seed is stable but not shared with others.
+            BlockStart = block.StartTime,
             Mode = VocoderPipeline.ParseMode(properties.GetString(Declarations.KeyVocoderMode, "worldline")),
             Speed = properties.GetDouble(Declarations.KeyPhonemeSpeed, 1.0),
             GainDecibels = properties.GetDouble(Declarations.KeyOutputGain, 0.0),

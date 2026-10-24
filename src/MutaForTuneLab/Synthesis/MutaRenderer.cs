@@ -22,6 +22,8 @@ public sealed class RenderRequest
     public string MelModelPath { get; init; } = "";
     public VocoderExpression Expression { get; init; } = new();
     public double GainDecibels { get; init; }
+    /// <summary>Where this block starts, in seconds; used for the noise seed.</summary>
+    public double BlockStart { get; init; }
     /// <summary>False forces the model's own timbre, for comparing the two paths.</summary>
     public bool UseBank { get; init; } = true;
 
@@ -31,6 +33,9 @@ public sealed class RenderRequest
     public double[]? Timbre { get; init; }
     /// <summary>Husky in decibels per frame; null leaves the model's aperiodicity.</summary>
     public double[]? Husky { get; init; }
+
+    /// <summary>Noise seed for this block; 0 derives one from the voice and the block start.</summary>
+    public ulong Seed { get; init; }
 
     /// <summary>"auto" follows each note, "offset" shifts it, "fixed" pins one region.</summary>
     public string BankPitchMode { get; init; } = "auto";
@@ -240,9 +245,11 @@ public static class MutaRenderer
         var r2 = request.Mode == VocoderMode.WorldlineR2
             ? R2Registry.Get(request.R2Directory, request.MelModelPath)
             : null;
+        ulong seed = request.Seed != 0UL ? request.Seed : VocoderPipeline.DeriveSeed(voice.Id, request.BlockStart);
+        MutaDiagnostics.Log($"[MUTA] block {request.BlockStart:F3}s seed {seed}");
         var output = VocoderPipeline.Render(
             spectrumMgc, spectrumBap, pitch, silence, alphas, request.Expression,
-            request.Mode, r2, out _);
+            request.Mode, r2, out _, seed);
 
         cancellation.ThrowIfCancellationRequested();
 

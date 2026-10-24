@@ -38,13 +38,44 @@ public static class VocoderPipeline
     };
 
     /// <summary>
+    /// A noise seed that is the same on every render of the same block and different
+    /// between blocks.
+    ///
+    /// The vocoder's noise is reproducible from its seed, so a constant seed would be
+    /// deterministic too -- but every block would then start from the same noise, which is
+    /// audible as a repeating texture and as a jump at each boundary. Deriving it from what
+    /// identifies the block gives both properties at once.
+    /// </summary>
+    public static ulong DeriveSeed(string voiceId, double startTime)
+    {
+        // FNV-1a: stable across runs and processes, unlike a string hash.
+        const ulong offset = 14695981039346656037UL;
+        const ulong prime = 1099511628211UL;
+
+        ulong hash = offset;
+        foreach (char c in voiceId ?? string.Empty)
+        {
+            hash ^= c;
+            hash *= prime;
+        }
+
+        long ticks = (long)Math.Round(startTime * 10_000_000.0);
+        for (int byteIndex = 0; byteIndex < 8; byteIndex++)
+        {
+            hash ^= (ulong)((ticks >> (byteIndex * 8)) & 0xFF);
+            hash *= prime;
+        }
+        return hash | 1UL;   // a zero seed is a poor seed for some generators
+    }
+
+    /// <summary>
     /// Renders one span. <paramref name="alpha"/> is the warping factor (see the timbre
     /// control); <paramref name="r2"/> may be null when nothing is installed.
     /// </summary>
     public static VocoderOutput Render(
         double[][] mgc, double[][] bap, double[] f0, bool[] silence,
         double[] alphas, VocoderExpression expression, VocoderMode mode,
-        R2Vocoder? r2, out VocoderMode used)
+        R2Vocoder? r2, out VocoderMode used, ulong seed = 1UL)
     {
         int frames = f0.Length;
         if (frames == 0 || mgc.Length != frames || bap.Length != frames)
@@ -71,6 +102,7 @@ public static class VocoderPipeline
             FramePeriodMs = ModelFrameMs,
             SampleRate = ModelRate,
             Backend = VocoderBackend.ContinuousNoise,
+            Seed = seed,
         };
         var samples = WorldlineVocoder.Synthesize(sp, ap, f0, settings, expression);
 
