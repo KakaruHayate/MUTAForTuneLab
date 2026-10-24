@@ -436,7 +436,9 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
             var note = block.Notes[i];
             int startFrame = (int)Math.Round((note.StartTime.Value - block.StartTime) / frameSeconds);
             int frames = Math.Max(1, (int)Math.Round((note.EndTime.Value - note.StartTime.Value) / frameSeconds));
-            notes.Add(new RenderNote(startFrame, frames, note.Pitch.Value, phones[i], false, lyrics[i]));
+            var (bankInitial, bankFinal) = BankPhones(mVoice, phones[i]);
+            notes.Add(new RenderNote(startFrame, frames, note.Pitch.Value, phones[i], false, lyrics[i],
+                bankInitial, bankFinal));
         }
 
         int totalFrames = Math.Max(1, (int)Math.Round((block.EndTime - block.StartTime) / frameSeconds));
@@ -617,6 +619,28 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
     /// or a romaji syllable whose onset and final are both in the voice's inventory -- and
     /// everything else becomes a vowel the voice can sing.
     /// </summary>
+    /// <summary>
+    /// The phones the bank is asked for, when Japanese sings through a Chinese bank.
+    ///
+    /// Sinsy gives the onset and the vowel; the bank speaks Chinese phone names, so the pair is
+    /// rewritten here. Null for every other voice: its phones are already the bank's own.
+    /// </summary>
+    static (string?, string?) BankPhones(MutaVoice voice, string phone)
+    {
+        if (!voice.IsJapanese)
+            return (null, null);
+
+        int cut = 0;
+        while (cut < phone.Length && "aiueo".IndexOf(phone[cut]) < 0)
+            cut++;
+        string? onset = cut > 0 ? phone[..cut] : null;
+        string vowel = cut < phone.Length ? phone[cut..] : phone;
+
+        return JapanesePhones.TryMap(onset, vowel, out var bankOnset, out var bankFinal)
+            ? (bankOnset, bankFinal)
+            : (null, "a");
+    }
+
     string PhoneFor(string lyric)
     {
         string cleaned = Clean(lyric);

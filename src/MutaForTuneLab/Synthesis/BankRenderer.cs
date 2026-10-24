@@ -5,7 +5,11 @@ using MutaForTuneLab.Assets;
 namespace MutaForTuneLab.Synthesis;
 
 /// <summary>One note as the assembler needs it: on the model's frame grid, already phonetic.</summary>
-public readonly record struct RenderNote(int StartFrame, int Frames, int Midi, string Phone, bool Rest = false, string Lyric = "");
+public readonly record struct RenderNote(
+    int StartFrame, int Frames, int Midi, string Phone, bool Rest = false, string Lyric = "",
+    // Japanese sings through the MUTA bank, whose phones are Chinese: the caller maps the
+    // pair before the assembler ever sees it, so no Chinese-only rule runs on a Japanese name.
+    string? BankInitial = null, string? BankFinal = null);
 
 /// <summary>What the assembler needs from a bank; lets tests feed it directly.</summary>
 public interface IBankSource
@@ -86,9 +90,13 @@ public static class BankRenderer
                 continue;
             }
 
-            var split = LabelBuilder.SplitSyllable(note.Phone);
-            string? initial = split?.Initial;
-            string final = split?.Final ?? note.Phone;
+            var split = note.BankInitial is not null || note.BankFinal is not null
+                ? (note.BankInitial, note.BankFinal ?? note.Phone)
+                : LabelBuilder.SplitSyllable(note.Phone) is { } parts
+                    ? (parts.Initial, parts.Final)
+                    : (null, note.Phone);
+            string? initial = string.IsNullOrEmpty(split.Item1) ? null : split.Item1;
+            string final = split.Item2;
 
             // The onset takes the duration the model gave that phone; the vowel fills the
             // rest of the note, because a note is as long as the score says it is. Falling

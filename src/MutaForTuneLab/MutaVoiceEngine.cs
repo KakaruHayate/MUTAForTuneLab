@@ -122,21 +122,26 @@ public sealed class MutaVoiceEngine : IVoiceSynthesisEngine, IExtensionSettings
     // —— 扫描 ——
 
     /// <summary>The packaged Japanese voice, or null when its files are missing.</summary>
-    static MutaVoice? BuiltInJapaneseVoice()
+    static MutaVoice? BuiltInJapaneseVoice(MutaVoice? bankVoice)
     {
         string voiceFile = Synthesis.MutaSinsy.VoiceFile;
         string dictionary = Synthesis.MutaSinsy.DictionaryDirectory;
         if (!File.Exists(voiceFile) || !Directory.Exists(dictionary))
             return null;
 
+        // The recording layer is what gives the voice its timbre, and it comes from the MUTA
+        // installation rather than from the Japanese model. Without one there is still a voice
+        // to list, but it can only sing the model's own sound.
         return new MutaVoice(
             Id: "sinsy-jp",
             Directory: Path.GetDirectoryName(Path.GetDirectoryName(dictionary)) ?? "",
             VoiceFile: voiceFile,
-            InfFile: "",
-            BankFile: "",
-            DisplayName: "NIT SONG070 F1（日语）",
-            BankBytes: 0);
+            InfFile: bankVoice?.InfFile ?? "",
+            BankFile: bankVoice?.BankFile ?? "",
+            DisplayName: bankVoice is null
+                ? "NIT SONG070 F1（日语）"
+                : $"NIT SONG070 F1（日语 / {bankVoice.DisplayName} bank）",
+            BankBytes: bankVoice?.BankBytes ?? 0);
     }
 
     void Rescan()
@@ -148,9 +153,12 @@ public sealed class MutaVoiceEngine : IVoiceSynthesisEngine, IExtensionSettings
 
         mVoices = VoiceLibrary.Scan(roots);
 
-        // The Japanese voice ships with the plugin: it is a plain HTS voice with Sinsy's
-        // label builder in front, so it needs no MUTA installation and no bank.
-        if (BuiltInJapaneseVoice() is { } japanese)
+        // Japanese sings through a MUTA bank, exactly as the port's design says: Sinsy supplies
+        // the labels, the durations and the F0, and the recordings supply the timbre. So the
+        // Japanese voice borrows the first song bank that is installed, and has no voice of its
+        // own when none is -- there is nothing to sing with then.
+        var bankVoice = mVoices.FirstOrDefault(v => v.HasBank);
+        if (BuiltInJapaneseVoice(bankVoice) is { } japanese)
             mVoices = mVoices.Append(japanese).ToList();
 
         mInfos.Clear();
