@@ -210,6 +210,44 @@ public static class MutaRenderer
 
         cancellation.ThrowIfCancellationRequested();
 
+        // A voice with no aperiodicity at all -- the Sinsy model is one -- leaves the stream
+        // at zero, and zero in this scale means "entirely noise": the vocoder then washes out
+        // every harmonic and the voice sounds like a hiss with no pitch in it. Detected here and
+        // replaced with a plausible curve: periodic at the bottom, breathier towards the top.
+        {
+            bool silent = true;
+            double biggest = 0.0;
+            for (int f = 0; f < bap.Length && silent; f++)
+                for (int b = 0; b < bap[f].Length; b++)
+                {
+                    biggest = Math.Max(biggest, Math.Abs(bap[f][b]));
+                    if (biggest > 0.5) { silent = false; break; }
+                }
+
+            if (silent && bap.Length > 0)
+            {
+                int bands = bap[0].Length;
+                for (int f = 0; f < bap.Length; f++)
+                    for (int b = 0; b < bands; b++)
+                        bap[f][b] = -30.0 + 22.0 * b / Math.Max(1, bands - 1);
+                MutaDiagnostics.Log($"[MUTA] voice has no aperiodicity, using a default curve ({bands} bands)");
+            }
+        }
+        // What the model says about voicing: mean aperiodicity per band tells a spread of
+        // harmonics from a noise wash at a glance.
+        if (frames > 0 && bap.Length > 0)
+        {
+            int bands = bap[0].Length;
+            double lo = double.MaxValue, hi = double.MinValue, sum = 0.0;
+            int count = 0;
+            for (int f = 0; f < bap.Length; f++)
+                for (int b = 0; b < bands; b++)
+                {
+                    double v = bap[f][b];
+                    lo = Math.Min(lo, v); hi = Math.Max(hi, v); sum += v; count++;
+                }
+            MutaDiagnostics.Log($"[MUTA] bap bands={bands} range={lo:F1}..{hi:F1} mean={(count > 0 ? sum / count : 0):F1}");
+        }
         // The bank, when the voice has one, replaces the model's own timbre: the model still
         // supplies the pitch contour, but the frames come from recorded contexts.
         BankResult? bank = null;
