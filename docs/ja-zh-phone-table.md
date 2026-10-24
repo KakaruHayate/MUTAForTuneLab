@@ -1,118 +1,117 @@
-# 日语音素 → MUTA bank 音素 对照表（第二版）
+# 日语音素 → MUTA bank 音素 对照表（第三版）
 
-依据：`yanxi.inf` 的真实录音过渡段（`current` 与 `right` 的共现），不是纸面近似。
+依据：`yanxi.inf` 的真实录音索引，判据是**过渡段是否存在**——声母组记了该右邻，或韵母组记了该左邻。
 
-状态：`exact` = 声韵与实际录音一致；`proxy` = 换用更近的声母/韵母但过渡段真实存在；
-`hard-join` = 该组合在 bank 里没有过渡段，靠引擎回退拼接。
+中文会对同一个元音用不同拼写，本表按索引里的实际拼写取：
+
+| 现象 | 拼写 |
+| --- | --- |
+| o 在多数声母后 | `uo`（火 h+uo、罗 l+uo） |
+| i 在 s/z/c 后 | `if`（思/资/次） |
+| i 在 zh/ch/sh/r 后 | `ib`（知/日） |
+| 零声母的 y/w | 记作 `sp` + 韵母 |
+| け/て/で | `e`（不是 `ei`） |
+
+状态：`exact` 与索引一致；`proxy` 换了声母或韵母但过渡段真实存在；`hard-join` 无过渡段。
 
 | 统计 | 数量 |
 | --- | ---: |
-| proxy | 67 |
-| exact | 51 |
-| hard-join | 45 |
+| proxy | 80 |
+| exact | 55 |
+| hard-join | 8 |
 
 ## 逐项
 
 | 日语音素 | 类别 | bank 起始 | bank 韵母 | 状态 |
 | --- | --- | --- | --- | --- |
-| N | nasal | — | en | exact |
+| N | nasal | — | en | proxy |
 | a | vowel | — | a | exact |
 | i | vowel | — | i | exact |
 | u | vowel | — | u | exact |
-| e | vowel | — | ei | exact |
+| e | vowel | — | e | exact |
 | o | vowel | — | o | exact |
 | ka | plain | k | a | exact |
 | ku | plain | k | u | exact |
-| ke | plain | k | ei | hard-join |
-| ko | plain | k | o | hard-join |
+| ke | plain | k | e | exact |
+| ko | plain | k | uo | proxy |
 | ga | plain | g | a | exact |
 | gu | plain | g | u | exact |
-| ge | plain | g | ei | exact |
-| go | plain | g | o | hard-join |
+| ge | plain | g | e | exact |
+| go | plain | g | uo | proxy |
 | ha | plain | h | a | exact |
 | hu | plain | h | u | exact |
-| he | plain | h | ei | exact |
-| ho | plain | h | o | hard-join |
+| he | plain | h | e | exact |
+| ho | plain | h | uo | proxy |
 | ba | plain | b | a | exact |
 | bi | plain | b | i | exact |
 | bu | plain | b | u | exact |
-| be | plain | b | ei | exact |
+| be | plain | b | ei | proxy |
 | bo | plain | b | o | hard-join |
 | pa | plain | p | a | exact |
 | pi | plain | p | i | exact |
 | pu | plain | p | u | exact |
-| pe | plain | p | ei | exact |
+| pe | plain | p | ei | proxy |
 | po | plain | p | o | exact |
 | ma | plain | m | a | exact |
 | mi | plain | m | i | exact |
 | mu | plain | m | u | exact |
-| me | plain | m | ei | exact |
+| me | plain | m | e | exact |
 | mo | plain | m | o | exact |
 | na | plain | n | a | exact |
 | ni | plain | n | i | exact |
 | nu | plain | n | u | exact |
-| ne | plain | n | ei | exact |
-| no | plain | n | o | hard-join |
+| ne | plain | n | e | exact |
+| no | plain | n | uo | proxy |
 | fa | plain | f | a | exact |
 | fi | plain | f | i | hard-join |
 | fu | plain | f | u | exact |
-| fe | plain | f | ei | exact |
+| fe | plain | f | ei | proxy |
 | fo | plain | f | o | exact |
 | sa | plain | s | a | exact |
-| si | plain | s | i | hard-join |
+| si | plain | s | if | exact |
 | su | plain | s | u | exact |
-| se | plain | s | ei | hard-join |
-| so | plain | s | o | hard-join |
+| se | plain | s | e | exact |
+| so | plain | s | uo | proxy |
 | za | plain | z | a | exact |
-| zi | plain | z | i | hard-join |
+| zi | plain | z | if | exact |
 | zu | plain | z | u | exact |
-| ze | plain | z | ei | exact |
-| zo | plain | z | o | hard-join |
+| ze | plain | z | e | exact |
+| zo | plain | z | uo | proxy |
 | ta | plain | t | a | exact |
 | ti | plain | t | i | exact |
 | tu | plain | t | u | exact |
-| te | plain | t | ei | hard-join |
-| to | plain | t | o | hard-join |
+| te | plain | t | e | exact |
+| to | plain | t | uo | proxy |
 | da | plain | d | a | exact |
 | di | plain | d | i | exact |
 | du | plain | d | u | exact |
-| de | plain | d | ei | exact |
-| do | plain | d | o | hard-join |
+| de | plain | d | e | exact |
+| do | plain | d | uo | proxy |
 | ra | plain | l | a | proxy |
 | ri | plain | l | i | proxy |
 | ru | plain | l | u | proxy |
-| re | plain | l | ei | proxy |
-| ro | plain | l | o | hard-join |
-| wa | plain | w | a | hard-join |
-| wi | plain | w | i | hard-join |
-| wu | plain | w | u | exact |
-| we | plain | w | ei | hard-join |
-| wo | plain | w | o | hard-join |
-| ya | plain | y | a | hard-join |
-| yi | plain | y | i | exact |
-| yu | plain | y | u | hard-join |
-| ye | plain | y | ei | hard-join |
-| yo | plain | y | o | hard-join |
+| re | plain | l | e | proxy |
+| ro | plain | l | uo | proxy |
 | tsa | plain | c | a | proxy |
-| tsi | plain | c | i | hard-join |
+| tsi | plain | c | if | proxy |
 | tsu | plain | c | u | proxy |
-| tse | plain | c | ei | hard-join |
-| tso | plain | c | o | hard-join |
-| cha | plain | q | a | hard-join |
+| tse | plain | c | e | proxy |
+| tso | plain | c | uo | proxy |
+| cha | plain | ch | a | exact |
 | chi | plain | q | i | proxy |
-| chu | plain | q | u | hard-join |
-| che | plain | q | ei | hard-join |
-| cho | plain | q | o | hard-join |
-| sha | plain | x | a | hard-join |
+| chu | plain | ch | u | exact |
+| che | plain | ch | e | exact |
+| cho | plain | ch | uo | proxy |
+| sha | plain | sh | a | exact |
 | shi | plain | x | i | proxy |
-| shu | plain | x | u | hard-join |
-| she | plain | x | ei | hard-join |
-| sho | plain | x | o | hard-join |
-| ja | plain | q | a | hard-join |
+| shu | plain | sh | u | exact |
+| she | plain | sh | e | exact |
+| sho | plain | sh | uo | proxy |
+| ja | plain | q | ia | proxy |
 | ji | plain | q | i | proxy |
-| ju | plain | q | u | hard-join |
-| je | plain | q | ei | hard-join |
-| jo | plain | q | o | hard-join |
+| ju | plain | q | iu | proxy |
+| je | plain | q | ie | proxy |
+| jo | plain | q | iu | proxy |
 | kya | palatalized | q | ia | proxy |
 | kyi | palatalized | q | i | proxy |
 | kyu | palatalized | q | iu | proxy |
@@ -163,30 +162,8 @@
 | dyu | palatalized | j | iu | proxy |
 | dye | palatalized | j | ie | proxy |
 | dyo | palatalized | j | iu | proxy |
-| sha | palatalized | x | ia | proxy |
-| shi | palatalized | x | i | proxy |
-| shu | palatalized | x | iu | proxy |
-| she | palatalized | x | ie | proxy |
-| sho | palatalized | x | iu | proxy |
-| cha | palatalized | q | ia | proxy |
-| chi | palatalized | q | i | proxy |
-| chu | palatalized | q | iu | proxy |
-| che | palatalized | q | ie | proxy |
-| cho | palatalized | q | iu | proxy |
-| ja | palatalized | j | ia | proxy |
-| ji | palatalized | j | i | exact |
-| ju | palatalized | j | iu | proxy |
-| je | palatalized | j | ie | proxy |
-| jo | palatalized | j | iu | proxy |
-
-## 生成说明
-
-本表由 `build/gen-table2.py` 从 `yanxi.inf` 的实际录音索引生成，
-判据是**过渡段是否存在**：声母组的 `right` 或韵母组的 `left` 命中即算存在（双向查）。
-
-`hard-join` 的那一批不是漏配，而是**普通话里根本没有这个音节**：
-`ko / ro / si / se / so / te / to / do / yo / wa / wo / zi / zo …`
-日语有、中文没有，任何跨语言映射都只能靠引擎按音类回退。
-其中 `k/g/h + i 系` 更特殊：き是 `ky+i`，所以走的是拗音行而不是 `k+i`。
-
-**N** 取 `en`（无起始）：中文 `en` 的前半极短、后半是稳定鼻音，拉长时最接近独立拨音。
+| ya | zero-initial | — | ia | proxy |
+| yu | zero-initial | — | iu | proxy |
+| yo | zero-initial | — | iu | proxy |
+| ye | zero-initial | — | ie | proxy |
+| wa | zero-initial | — | ua | proxy |
