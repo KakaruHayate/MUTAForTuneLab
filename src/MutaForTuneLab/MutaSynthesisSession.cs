@@ -32,6 +32,12 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
     /// <summary>A gap wider than this starts a new block.</summary>
     const double GapSeconds = 0.4;
     const int MaxNotesPerBlock = 12;
+    /// <summary>Silence kept before the first note of a block.</summary>
+    const double LeadSeconds = 0.05;
+    /// <summary>Silence kept after the last note of a block.</summary>
+    const double TailSeconds = 0.15;
+    /// <summary>Gaps up to this wide are split down the middle instead of left uncovered.</summary>
+    const double TileGapSeconds = 1.0;
 
     readonly IVoiceSynthesisContext mContext;
     readonly MutaVoice mVoice;
@@ -268,6 +274,11 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
         if (notes.Count == 0)
             return blocks;
 
+        // First group the notes; then decide where the audio of each group begins and ends.
+        var groups = new List<List<IVoiceSynthesisNote>>();
+        var noteStarts = new List<double>();
+        var noteEnds = new List<double>();
+
         int index = 0;
         while (index < notes.Count)
         {
@@ -289,12 +300,43 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
                 index++;
             }
 
+            groups.Add(members);
+            noteStarts.Add(start);
+            noteEnds.Add(end);
+        }
+
+        // A block's audio is cut in the middle of the silence that follows it, not against
+        // its last frame: a cut against the frame leaves the decay and the gate's ramp with
+        // nowhere to go. Between two blocks close enough to share a silence the midpoint is
+        // used, so the two meet exactly once; across a long rest each keeps a margin and the
+        // rest itself is left to the host as silence.
+        for (int i = 0; i < groups.Count; i++)
+        {
+            double start = i == 0 ? Math.Max(0.0, noteStarts[0] - LeadSeconds) : noteStarts[i] - LeadSeconds;
+            double end = noteEnds[i] + TailSeconds;
+
+            if (i > 0)
+            {
+                double previousEnd = noteEnds[i - 1];
+                double gap = noteStarts[i] - previousEnd;
+                if (gap <= TileGapSeconds)
+                    start = (previousEnd + noteStarts[i]) / 2.0;
+            }
+            if (i + 1 < groups.Count)
+            {
+                double nextStart = noteStarts[i + 1];
+                double gap = nextStart - noteEnds[i];
+                if (gap <= TileGapSeconds)
+                    end = (noteEnds[i] + nextStart) / 2.0;
+            }
+
+            var members = groups[i];
             blocks.Add(new Block
             {
                 Key = KeyOf(members),
                 Signature = SignatureOf(members),
                 StartTime = start,
-                EndTime = end,
+                EndTime = Math.Max(start + 0.02, end),
                 Notes = members,
             });
         }
