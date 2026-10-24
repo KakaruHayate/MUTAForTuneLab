@@ -31,6 +31,9 @@ public sealed class MutaVoiceEngine : IVoiceSynthesisEngine, IExtensionSettings
 
     public void Init()
     {
+        // The synthesis layer logs through a sink so it stays free of the host SDK; that is
+        // what lets a probe drive it offline.
+        Synthesis.MutaDiagnostics.Sink = message => TuneLabContext.Global.GetLogger().Debug(message);
         Rescan();
     }
 

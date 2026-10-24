@@ -175,7 +175,7 @@ public static class BankRenderer
             previousPhone = final;
         }
 
-        TuneLab.SDK.TuneLabContext.Global.GetLogger().Debug(
+        MutaDiagnostics.Log(
             $"[MUTA] bank slots {consSlots} consonant, {vowelSlots} vowel, {missedSlots} missed");
         return new BankResult(mgc, bap, silence);
     }

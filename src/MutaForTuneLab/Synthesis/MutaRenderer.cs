@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using MutaForTuneLab.Assets;
 using MutaForTuneLab.Native;
-using TuneLab.SDK;
+
 
 namespace MutaForTuneLab.Synthesis;
 
@@ -22,6 +22,8 @@ public sealed class RenderRequest
     public string MelModelPath { get; init; } = "";
     public VocoderExpression Expression { get; init; } = new();
     public double GainDecibels { get; init; }
+    /// <summary>False forces the model's own timbre, for comparing the two paths.</summary>
+    public bool UseBank { get; init; } = true;
 }
 
 public sealed record RenderResult(float[] Audio, double[] FramePitch, IReadOnlyList<RenderNote> Notes);
@@ -67,7 +69,7 @@ public static class MutaRenderer
                     note.StartFrame * FrameSeconds, note.Frames * FrameSeconds, note.Midi,
                     MutaSinsy.ToKana(note.Lyric)));
             }
-            TuneLabContext.Global.GetLogger().Debug(
+            MutaDiagnostics.Log(
                 $"[MUTA] jp note0 phone=[{notes[0].Phone}] lyric=[{notes[0].Lyric}] " +
                 $"kana=[{MutaSinsy.ToKana(notes[0].Lyric)}] notes={notes.Count}");
             japaneseLabels = MutaSinsy.Labels(scoreNotes, request.TotalFrames * FrameSeconds,
@@ -105,7 +107,7 @@ public static class MutaRenderer
         if (japaneseLabels is not null)
         {
             var probe = MutaSinsy.ContentWindow(japaneseLabels, FrameSeconds);
-            TuneLabContext.Global.GetLogger().Debug(
+            MutaDiagnostics.Log(
                 $"[MUTA] jp: {frames} frames, window {(probe is null ? "null" : $"{probe.Value.StartFrame}..{probe.Value.EndFrame}")} " +
                 $"lines={japaneseLabels.Split((char)10).Length} nonpau={CountContent(japaneseLabels)}");
         }
@@ -129,20 +131,24 @@ public static class MutaRenderer
         // The bank, when the voice has one, replaces the model's own timbre: the model still
         // supplies the pitch contour, but the frames come from recorded contexts.
         BankResult? bank = null;
-        try
+        if (request.UseBank)
         {
-            var assets = BankAssets.Load(voice);
-            bank = BankRenderer.Assemble(assets, notes, request.TotalFrames);
-        }
-        catch (Exception)
-        {
-            bank = null;
+            try
+            {
+                var assets = BankAssets.Load(voice);
+                bank = BankRenderer.Assemble(assets, notes, request.TotalFrames);
+            }
+            catch (Exception)
+            {
+                bank = null;
+            }
         }
 
         double[][] spectrumMgc;
         double[][] spectrumBap;
         bool[] silence;
         double[] pitch;
+        double[]? spectralGain = null;
 
         if (bank is not null && bank.Mgc.Length == request.TotalFrames)
         {
@@ -170,9 +176,17 @@ public static class MutaRenderer
                 for (int f = 0; f < spectrumMgc.Length; f++)
                     spectrumMgc[f][0] += offset;
 
-            TuneLabContext.Global.GetLogger().Debug(
+            MutaDiagnostics.Log(
                 $"[MUTA] bank level offset {offset:F3} " +
                 $"(model {modelGain / Math.Max(1, modelFrames):F3}, bank {bankGain / Math.Max(1, bankFrames):F3})");
+
+            // Level is only half of it: the recordings and the model disagree about the
+            // shape too, by several dB around the first formant. The model runs anyway for
+            // the pitch, so its average spectrum is already here to match against.
+            spectralGain = SpectralMatch.BuildGain(mgc, spectrumMgc, request.Alpha, Bins);
+            MutaDiagnostics.Log(spectralGain is null
+                ? "[MUTA] spectral match unavailable"
+                : $"[MUTA] spectral match applied, gain {spectralGain.Min():F3}..{spectralGain.Max():F3}");
         }
         else
         {
@@ -201,7 +215,7 @@ public static class MutaRenderer
                 if (Math.Abs(correction) > 0.01)
                     for (int f = 0; f < spectrumMgc.Length; f++)
                         spectrumMgc[f][0] += correction;
-                TuneLabContext.Global.GetLogger().Debug(
+                MutaDiagnostics.Log(
                     $"[MUTA] level correction {correction:F3} (voice {sum / voiced:F3})");
             }
         }
@@ -212,7 +226,7 @@ public static class MutaRenderer
                 if (!silence[f]) { sum += spectrumMgc[f][0]; voiced++; }
             double modelSum = 0.0;
             for (int f = 0; f < mgc.Length; f++) modelSum += mgc[f][0];
-            TuneLabContext.Global.GetLogger().Debug(
+            MutaDiagnostics.Log(
                 $"[MUTA] frames {spectrumMgc.Length} voiced {voiced} c0 {(voiced > 0 ? sum / voiced : 0):F3} " +
                 $"model c0 {(mgc.Length > 0 ? modelSum / mgc.Length : 0):F3} source {(bank is null ? "model" : "bank")}");
         }
@@ -229,7 +243,7 @@ public static class MutaRenderer
             : null;
         var output = VocoderPipeline.Render(
             spectrumMgc, spectrumBap, pitch, silence, request.Alpha, request.Expression,
-            request.Mode, r2, out _);
+            request.Mode, r2, out _, spectralGain);
 
         cancellation.ThrowIfCancellationRequested();
 

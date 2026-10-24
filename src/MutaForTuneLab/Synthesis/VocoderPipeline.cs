@@ -44,7 +44,7 @@ public static class VocoderPipeline
     public static VocoderOutput Render(
         double[][] mgc, double[][] bap, double[] f0, bool[] silence,
         double alpha, VocoderExpression expression, VocoderMode mode,
-        R2Vocoder? r2, out VocoderMode used)
+        R2Vocoder? r2, out VocoderMode used, double[]? spectralGain = null)
     {
         int frames = f0.Length;
         if (frames == 0 || mgc.Length != frames || bap.Length != frames)
@@ -55,7 +55,7 @@ public static class VocoderPipeline
 
         if (mode == VocoderMode.WorldlineR2 && r2 is not null)
         {
-            var spGrid = Power(mgc, alpha, silence);
+            var spGrid = ApplyGain(Power(mgc, alpha, silence), spectralGain);
             var apGrid = Aperiodicity(bap);
             used = mode;
             // R2 builds its own spectra: it does the grid conversion itself.
@@ -63,7 +63,7 @@ public static class VocoderPipeline
         }
 
         used = mode == VocoderMode.WorldlineR2 ? VocoderMode.WorldlineR11 : mode;
-        var sp = Power(mgc, alpha, silence);
+        var sp = ApplyGain(Power(mgc, alpha, silence), spectralGain);
         var ap = Aperiodicity(bap);
         var settings = new VocoderSettings
         {
@@ -78,6 +78,20 @@ public static class VocoderPipeline
         int frameSamples = (int)Math.Round(settings.SampleRate * settings.FramePeriodMs / 1000.0);
         OutputGate.ApplySilence(samples, silence, frameSamples);
         return new VocoderOutput(samples, ModelRate);
+    }
+
+    /// <summary>Per-bin gain, when one layer is being matched to another.</summary>
+    static double[][] ApplyGain(double[][] spectrum, double[]? gain)
+    {
+        if (gain is null)
+            return spectrum;
+        for (int f = 0; f < spectrum.Length; f++)
+        {
+            var row = spectrum[f];
+            for (int k = 0; k < row.Length && k < gain.Length; k++)
+                row[k] *= gain[k];
+        }
+        return spectrum;
     }
 
     /// <summary>MGC to power spectrum, with rests held at the sentinel value.</summary>
