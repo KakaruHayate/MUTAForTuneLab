@@ -45,6 +45,10 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
     readonly string? mR2Directory;
     readonly string mMelModelPath;
     readonly PinyinDictionary? mDictionary;
+    /// <summary>The phones this voice can actually sing, from its bank index; null for Japanese.</summary>
+    readonly HashSet<string>? mPhones;
+    /// <summary>The vowel sung in place of a lyric the voice cannot pronounce.</summary>
+    readonly string mLyricFallback = "a";
     readonly KanaTable? mKana;
 
     readonly ActionEvent mStatusChanged = new();
@@ -93,6 +97,37 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
         // Japanese morae come from the table shipped beside the Sinsy dictionaries.
         mKana = KanaTable.TryLoad(System.IO.Path.Combine(
             Native.NativeLibraries.PackageDirectory, "sinsy", "dic"));
+
+        // The whitelist a lyric has to satisfy: the phone names the bank index records, which
+        // are exactly the contexts this voice has. Without it a lyric the model cannot place
+        // reaches the native engine, and that does not fail politely.
+        if (voice.HasBank && File.Exists(voice.InfFile))
+        {
+            try
+            {
+                var phones = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var group in Assets.InfFile.Load(voice.InfFile).Groups)
+                    foreach (var item in group.Items)
+                        phones.Add(item.Current);
+                if (phones.Count > 0)
+                {
+                    mPhones = phones;
+                    foreach (string vowel in new[] { "a", "o", "e", "i", "u" })
+                    {
+                        if (!phones.Contains(vowel))
+                            continue;
+                        mLyricFallback = vowel;
+                        break;
+                    }
+                }
+            }
+            catch (Exception error)
+            {
+                // A broken index is not worth a session: fall back to the dictionary route.
+                TuneLabContext.Global.GetLogger().Warning(
+                    $"[MUTA] phone inventory unavailable: {error.GetType().Name}: {error.Message}");
+            }
+        }
 
         // A block re-renders when its notes change. These make it re-render when a curve or
         // a part property changes too, because those change the audio just as much.
@@ -572,39 +607,98 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
         automation.Evaluator.Evaluate(positions, values);
         return values;
     }
+    /// <summary>
+    /// Turns a lyric into the phone the model is asked for, and refuses anything that is not
+    /// a phone this voice actually has.
+    ///
+    /// The native engine does not validate: a phone it cannot place reads past its own arrays
+    /// and takes the process down. That is how a real project with a note sung as "h" killed
+    /// the host. So the rule here is a whitelist -- dictionary syllable, kana from the table,
+    /// or a romaji syllable whose onset and final are both in the voice's inventory -- and
+    /// everything else becomes a vowel the voice can sing.
+    /// </summary>
     string PhoneFor(string lyric)
     {
-        if (string.IsNullOrWhiteSpace(lyric))
-            return "a";
+        string cleaned = Clean(lyric);
+        if (cleaned.Length == 0)
+            return FallbackPhone(lyric);
 
-        if (lyric.All(c => c < 128))
+        // Japanese first: its phones come from the kana table, not from an inventory.
+        if (mPhones is null && mKana is not null)
         {
-            // ASCII lyrics reach the model as phones, which is how a romaji project works.
-            // A bare consonant is not singable, though, and asking the model for one does not
-            // fail politely: it crashes inside the native engine. That is how a real project
-            // took the host down, on a note whose lyric was "h".
-            string ascii = new string(lyric.Where(char.IsLetter).ToArray()).ToLowerInvariant();
-            if (ascii.Length == 0)
-                return "a";
-            if (LabelBuilder.SplitSyllable(ascii) is { Final.Length: > 0 })
-                return ascii;
-
-            string withVowel = ascii + "a";
-            if (LabelBuilder.SplitSyllable(withVowel) is { Final.Length: > 0 })
+            if (mKana.PhonemesFor(cleaned) is { } fromKana)
+                return fromKana;
+            if (cleaned.All(c => c < 128))
             {
-                TuneLabContext.Global.GetLogger().Debug(
-                    $"[MUTA] lyric [{lyric}] is not singable, singing [{withVowel}]");
-                return withVowel;
+                string romaji = new string(cleaned.Where(char.IsLetter).ToArray()).ToLowerInvariant();
+                if (romaji.Length > 0 && mKana.KanaFor(romaji) is { } kana
+                    && mKana.PhonemesFor(kana) is { } fromRomaji)
+                    return fromRomaji;
             }
-            return "a";
+            return FallbackPhone(lyric);
         }
 
-        if (mDictionary?.SyllableFor(lyric) is { } syllable)
+        if (mDictionary?.SyllableFor(cleaned) is { } syllable && IsSingable(syllable))
             return syllable;
 
-        if (KanaTable.IsKana(lyric) && mKana?.PhonemesFor(lyric) is { } phones)
-            return phones;
+        string ascii = new string(cleaned.Where(char.IsLetter).ToArray()).ToLowerInvariant();
+        if (ascii.Length > 0)
+        {
+            if (IsSingable(ascii))
+                return ascii;
 
-        return "a";
+            // A bare consonant has no final; give it the neutral vowel.
+            string withVowel = ascii + "a";
+            if (IsSingable(withVowel))
+            {
+                TuneLabContext.Global.GetLogger().Debug(
+                    $"[MUTA] lyric [{lyric}] has no vowel, singing [{withVowel}]");
+                return withVowel;
+            }
+        }
+
+        return FallbackPhone(lyric);
+    }
+
+    /// <summary>Letters and kana only: spaces, punctuation and digits cannot be sung.</summary>
+    static string Clean(string lyric)
+    {
+        if (string.IsNullOrEmpty(lyric))
+            return string.Empty;
+
+        var kept = new System.Text.StringBuilder(lyric.Length);
+        foreach (char c in lyric)
+        {
+            if (char.IsLetter(c))
+                kept.Append(c);
+        }
+        return kept.ToString().ToLowerInvariant();
+    }
+
+    /// <summary>
+    /// Whether the model can be asked for this syllable: both of its parts have to exist in
+    /// the voice. With no inventory (the Japanese chain) the kana table has already decided.
+    /// </summary>
+    bool IsSingable(string phone)
+    {
+        if (phone.Length == 0)
+            return false;
+        if (mPhones is null)
+            return LabelBuilder.SplitSyllable(phone) is { Final.Length: > 0 };
+
+        if (mPhones.Contains(phone))
+            return true;
+        if (LabelBuilder.SplitSyllable(phone) is not { } parts)
+            return false;
+        bool onset = parts.Initial.Length == 0 || mPhones.Contains(parts.Initial);
+        return onset && mPhones.Contains(parts.Final);
+    }
+
+    /// <summary>The vowel to sing instead, and a note in the log that the lyric was replaced.</summary>
+    string FallbackPhone(string lyric)
+    {
+        TuneLabContext.Global.GetLogger().Debug(
+            $"[MUTA] lyric [{lyric}] is not singable by this voice, singing [{mLyricFallback}]");
+        return mLyricFallback;
     }
 }
