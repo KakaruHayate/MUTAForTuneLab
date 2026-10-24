@@ -9,8 +9,6 @@ public enum VocoderMode
     WorldlineR11,
     /// <summary>WORLDLINE R2 — the user's neural vocoder, 44.1 kHz.</summary>
     WorldlineR2,
-    /// <summary>WORLD's own synthesis, kept for A/B.</summary>
-    World,
 }
 
 /// <summary>Rendered audio plus the rate it came out at.</summary>
@@ -36,7 +34,6 @@ public static class VocoderPipeline
     public static VocoderMode ParseMode(string? value) => value switch
     {
         "r2" => VocoderMode.WorldlineR2,
-        "world" => VocoderMode.World,
         _ => VocoderMode.WorldlineR11,
     };
 
@@ -73,12 +70,13 @@ public static class VocoderPipeline
             FftSize = 2048,
             FramePeriodMs = ModelFrameMs,
             SampleRate = ModelRate,
-            Backend = used == VocoderMode.World ? VocoderBackend.World : VocoderBackend.ContinuousNoise,
+            Backend = VocoderBackend.ContinuousNoise,
         };
         var samples = WorldlineVocoder.Synthesize(sp, ap, f0, settings, expression);
 
         // The vocoder keeps going through a rest; the host must hear nothing there.
-        OutputGate.ApplySilence(samples, silence, settings.SampleRate * (int)Math.Round(ModelFrameMs));
+        int frameSamples = (int)Math.Round(settings.SampleRate * settings.FramePeriodMs / 1000.0);
+        OutputGate.ApplySilence(samples, silence, frameSamples);
         return new VocoderOutput(samples, ModelRate);
     }
 

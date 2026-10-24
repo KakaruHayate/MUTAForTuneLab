@@ -117,7 +117,6 @@ public static class Declarations
                     // R2 runs an external neural vocoder the user installs themselves; the package
                     // is not redistributable, so it is never bundled. Needs its folder in settings.
                     new(PropertyValue.Create("r2"), L.Tr("WORLDLINE R2 (external vocoder)", "WORLDLINE R2（外部声码器）")),
-                    new(PropertyValue.Create("world"), L.Tr("WORLD (classic, A/B)", "WORLD（经典，对照）")),
                 }).WithDefault(PropertyValue.Create("worldline"))
             },
             {
