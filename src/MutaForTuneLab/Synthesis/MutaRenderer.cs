@@ -55,6 +55,7 @@ public static class MutaRenderer
         // Sinsy's for Japanese. Both end at the same place -- a list of label lines.
         IReadOnlyList<string> labels;
         string enginePath;
+        string? japaneseLabels = null;
         if (voice.IsJapanese)
         {
             var scoreNotes = new List<ScoreNote>(notes.Count);
@@ -63,11 +64,11 @@ public static class MutaRenderer
                 scoreNotes.Add(new ScoreNote(
                     note.StartFrame * FrameSeconds, note.Frames * FrameSeconds, note.Midi, note.Lyric));
             }
-            var text = MutaSinsy.Labels(scoreNotes, request.TotalFrames * FrameSeconds,
+            japaneseLabels = MutaSinsy.Labels(scoreNotes, request.TotalFrames * FrameSeconds,
                 MutaSinsy.DictionaryDirectory);
-            if (text is null)
+            if (japaneseLabels is null)
                 throw new InvalidOperationException("the Japanese label builder refused the score");
-            labels = text.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+            labels = japaneseLabels.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
             enginePath = voice.VoiceFile;
         }
         else
@@ -92,6 +93,22 @@ public static class MutaRenderer
         ReadStream(engine, 0, mgcWidth, mgc);
         ReadStream(engine, 2, bapWidth, bap);
         ReadStream(engine, 1, engine.VectorLength(1), lf0);
+
+        // Sinsy pads the phrase with pauses it adds itself; the labels say where the singing
+        // actually is, so cut to that and the span matches the block again.
+        if (japaneseLabels is not null
+            && MutaSinsy.ContentWindow(japaneseLabels, FrameSeconds) is { } window)
+        {
+            int from = Math.Clamp(window.StartFrame, 0, frames - 1);
+            int to = Math.Clamp(window.EndFrame, from + 1, frames);
+            if (to - from >= 2 && (from > 0 || to < frames))
+            {
+                mgc = mgc[from..to];
+                bap = bap[from..to];
+                lf0 = lf0[from..to];
+                frames = to - from;
+            }
+        }
 
         cancellation.ThrowIfCancellationRequested();
 
