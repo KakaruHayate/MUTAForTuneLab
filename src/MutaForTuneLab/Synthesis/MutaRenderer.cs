@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using MutaForTuneLab.Assets;
 using MutaForTuneLab.Native;
+using TuneLab.SDK;
 
 
 namespace MutaForTuneLab.Synthesis;
@@ -45,7 +47,9 @@ public sealed class RenderRequest
     public int BankPitchNote { get; init; }
 }
 
-public sealed record RenderResult(float[] Audio, double[] FramePitch, IReadOnlyList<RenderNote> Notes);
+public sealed record RenderResult(
+    float[] Audio, double[] FramePitch, IReadOnlyList<RenderNote> Notes,
+    IReadOnlyList<MutaRenderer.PhonemeGeometry> Geometry);
 
 /// <summary>
 /// Runs the chain for one chunk: labels, the acoustic model, the pitch mechanism, the
@@ -70,7 +74,7 @@ public static class MutaRenderer
         var voice = request.Voice;
         var notes = request.Notes;
         if (notes.Count == 0)
-            return new RenderResult([], [], notes);
+            return new RenderResult([], [], notes, []);
 
         cancellation.ThrowIfCancellationRequested();
 
@@ -119,6 +123,10 @@ public static class MutaRenderer
         MutaDiagnostics.Log($"[MUTA] model frames {frames} speed {request.Speed:F2} phones {phoneFrames.Count} " +
             $"sum {phoneFrames.Sum()} first {(phoneFrames.Count > 0 ? phoneFrames[0] : 0)}");
 
+        // Where each phoneme actually sits is the host's own layout's business, so that what
+        // is drawn and what is heard cannot drift apart.
+        var geometry = ResolveGeometry(notes, phoneFrames, request.BlockStart);
+
         int mgcWidth = engine.VectorLength(0);
         int bapWidth = engine.VectorLength(2);
         var mgc = new double[frames][];
@@ -163,7 +171,7 @@ public static class MutaRenderer
             {
                 var assets = BankAssets.Load(voice);
                 bank = BankRenderer.Assemble(assets, notes, request.TotalFrames,
-                    request.BankPitchMode, request.BankPitchOffset, request.BankPitchNote, phoneFrames);
+                    request.BankPitchMode, request.BankPitchOffset, request.BankPitchNote, AssemblyFrames(geometry));
             }
             catch (Exception)
             {
@@ -258,7 +266,7 @@ public static class MutaRenderer
         for (int i = 0; i < audio.Length; i++)
             audio[i] = (float)SoftLimit(output.Samples[i] * gain);
 
-        return new RenderResult(audio, pitch, notes);
+        return new RenderResult(audio, pitch, notes, geometry);
     }
 
     static int CountContent(string text)
@@ -436,6 +444,127 @@ public static class MutaRenderer
                 durations.Add(total);
         }
         return durations;
+    }
+    /// <summary>The frame counts the assembler consumes, in the order it asks for them.</summary>
+    static List<int> AssemblyFrames(IReadOnlyList<PhonemeGeometry> geometry)
+    {
+        var frames = new List<int>(geometry.Count * 2);
+        foreach (var item in geometry)
+        {
+            if (item.Final == "sil")
+                continue;
+            if (item.Initial is not null)
+                frames.Add(item.LeadingFrames);
+            frames.Add(item.BodyFrames);
+        }
+        return frames;
+    }
+    /// <summary>One note's phoneme geometry, in frames, once the host's layout has placed it.</summary>
+    public readonly record struct PhonemeGeometry(
+        string? Initial, string Final, int LeadingFrames, int BodyFrames, double BodyOffset);
+
+    /// <summary>
+    /// Places the phonemes with the host's own layout instead of our arithmetic.
+    ///
+    /// The onset sits inside the note -- body offset equal to the onset's length -- which is
+    /// MUTA's semantics: the consonant is sung on the beat, not before it. Everything else
+    /// (how a phoneme is split across a beat, what a note borrows from its neighbour) is
+    /// decided by the same code the host draws with, so the audio cannot disagree with the
+    /// display.
+    /// </summary>
+    static PhonemeGeometry[] ResolveGeometry(
+        IReadOnlyList<RenderNote> notes, List<int> phoneFrames, double blockStart)
+    {
+        var layout = new PhonemeLayoutNote[notes.Count];
+        var splits = new (string? Initial, string Final)[notes.Count];
+        int cursor = 0;
+
+        for (int i = 0; i < notes.Count; i++)
+        {
+            var note = notes[i];
+            double start = blockStart + note.StartFrame * FrameSeconds;
+            double end = start + note.Frames * FrameSeconds;
+
+            if (note.Rest)
+            {
+                splits[i] = (null, "sil");
+                layout[i] = new PhonemeLayoutNote
+                {
+                    FillStart = start,
+                    FillEnd = end,
+                    LeadingPhonemes = Array.Empty<SynthesizedPhoneme>(),
+                    BodyPhonemes = Array.Empty<SynthesizedPhoneme>(),
+                    BodyOffset = 0.0,
+                };
+                continue;
+            }
+
+            var split = LabelBuilder.SplitSyllable(note.Phone);
+            string? initial = split?.Initial;
+            string final = split?.Final ?? note.Phone;
+            splits[i] = (initial, final);
+
+            int leadingFrames = 0;
+            if (initial is not null && cursor < phoneFrames.Count)
+                leadingFrames = phoneFrames[cursor++];
+            int bodyFrames = cursor < phoneFrames.Count ? phoneFrames[cursor++] : 0;
+            if (bodyFrames <= 0)
+                bodyFrames = Math.Max(1, note.Frames - leadingFrames);
+
+            var leading = initial is null
+                ? (IReadOnlyList<SynthesizedPhoneme>)Array.Empty<SynthesizedPhoneme>()
+                : new[]
+                {
+                    new SynthesizedPhoneme
+                    {
+                        Symbol = initial,
+                        Duration = leadingFrames * FrameSeconds,
+                        StretchWeight = 0.0,
+                    },
+                };
+            var body = new[]
+            {
+                new SynthesizedPhoneme
+                {
+                    Symbol = final,
+                    Duration = bodyFrames * FrameSeconds,
+                    StretchWeight = 1.0,
+                },
+            };
+
+            layout[i] = new PhonemeLayoutNote
+            {
+                FillStart = start,
+                FillEnd = end,
+                LeadingPhonemes = leading,
+                BodyPhonemes = body,
+                // The junction sits one onset-length after the note head.
+                BodyOffset = leadingFrames * FrameSeconds,
+            };
+        }
+
+        var timings = PhonemeLayout.Resolve(layout);
+        var result = new PhonemeGeometry[notes.Count];
+        for (int i = 0; i < notes.Count; i++)
+        {
+            var note = notes[i];
+            double noteStart = blockStart + note.StartFrame * FrameSeconds;
+            var (initial, final) = splits[i];
+            var rows = timings[i];
+            int index = 0;
+            int leadingFrames = 0;
+            if (initial is not null && index < rows.Length)
+            {
+                leadingFrames = Math.Max(0, (int)Math.Round(rows[index].Duration / FrameSeconds));
+                index++;
+            }
+            int bodyFrames = index < rows.Length
+                ? Math.Max(1, (int)Math.Round(rows[index].Duration / FrameSeconds))
+                : Math.Max(1, note.Frames - leadingFrames);
+            double bodyOffset = index < rows.Length ? rows[index].Start - noteStart : leadingFrames * FrameSeconds;
+            result[i] = new PhonemeGeometry(initial, final, leadingFrames, bodyFrames, bodyOffset);
+        }
+        return result;
     }
     /// <summary>The model writes an unvoiced sentinel rather than zero.</summary>
     static double[] PitchFromLf0(double[] lf0)

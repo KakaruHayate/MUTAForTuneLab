@@ -54,6 +54,8 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
         public required string Signature { get; init; }
         public IAudioSegment? Segment { get; init; }
         public required IReadOnlyMap<string, SynthesizedSyllable> Phonemes { get; init; }
+        /// <summary>Per-frame pitch the render produced, for the readback line.</summary>
+        public required double[] FramePitch { get; init; }
         public required double StartTime { get; init; }
         public required double EndTime { get; init; }
     }
@@ -115,7 +117,9 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
 
     public IReadOnlyMap<string, SynthesizedSyllable> SynthesizedPhonemes => mPhonemes;
 
-    public SynthesizedPitch SynthesizedPitch { get; } = new() { Segments = [] };
+    public SynthesizedPitch SynthesizedPitch => mPitch;
+
+    SynthesizedPitch mPitch = new() { Segments = [] };
 
     public IReadOnlyMap<string, SynthesizedParameter> SynthesizedParameters { get; } =
         new Map<string, SynthesizedParameter>();
@@ -211,6 +215,7 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
                 Signature = block.Signature,
                 Segment = segment,
                 Phonemes = result.Phonemes,
+                FramePitch = result.FramePitch,
                 StartTime = block.StartTime,
                 EndTime = block.EndTime,
             };
@@ -227,8 +232,13 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
                 $"[MUTA] rendered {block.StartTime:F3}..{block.EndTime:F3}s: {result.Audio.Length} samples " +
                 $"peak {peak:F4} at {peakAt} rms {rms:F4}");
             mPhonemes = MergePhonemes();
+            mPitch = new SynthesizedPitch { Segments = MergePitch() };
+            TuneLabContext.Global.GetLogger().Debug(
+                $"[MUTA] pitch readback {mPitch.Segments.Count} segments " +
+                $"{mPitch.Segments.Sum(s => s.Count)} points");
             mStatusChanged.Invoke();
             mPhonemesChanged.Invoke();
+            mPitchChanged.Invoke();
         }
         finally
         {
@@ -319,7 +329,11 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
 
     // ---- rendering ---------------------------------------------------------
 
-    sealed record BlockRender(float[] Audio, IReadOnlyMap<string, SynthesizedSyllable> Phonemes);
+    sealed record BlockRender(
+        float[] Audio,
+        IReadOnlyMap<string, SynthesizedSyllable> Phonemes,
+        double[] FramePitch,
+        double StartTime);
 
     BlockRender? Render(VoiceSynthesisSnapshot snapshot, string[] phones, string[] lyrics, Block block, CancellationToken cancellation)
     {
@@ -392,39 +406,93 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
         if (cancellation.IsCancellationRequested)
             return null;
 
-        return new BlockRender(rendered.Audio, BuildPhonemes(block.Notes, phones));
+        return new BlockRender(rendered.Audio, BuildPhonemes(block.Notes, rendered.Geometry),
+            rendered.FramePitch, block.StartTime);
     }
 
     /// <summary>
-    /// The phoneme product. Consonants are rigid, the vowel stretches: that is the default
-    /// the host's layout expects when an engine has no stronger opinion.
+    /// The phoneme product, published with the lengths the layout actually used.
+    ///
+    /// The consonant is rigid and the vowel stretches, and the body offset is the onset's
+    /// own length -- which is what puts the consonant inside the note rather than before it.
     /// </summary>
     static IReadOnlyMap<string, SynthesizedSyllable> BuildPhonemes(
-        IReadOnlyList<IVoiceSynthesisNote> notes, string[] phones)
+        IReadOnlyList<IVoiceSynthesisNote> notes,
+        IReadOnlyList<MutaRenderer.PhonemeGeometry> geometry)
     {
         var map = new Map<string, SynthesizedSyllable>();
-        for (int i = 0; i < notes.Count; i++)
+        for (int i = 0; i < notes.Count && i < geometry.Count; i++)
         {
-            var note = notes[i];
-            var split = LabelBuilder.SplitSyllable(phones[i]);
+            var item = geometry[i];
             var leading = new List<SynthesizedPhoneme>();
             var body = new List<SynthesizedPhoneme>();
-            if (split is { } parts)
+            if (item.Initial is { Length: > 0 } initial)
             {
-                leading.Add(new SynthesizedPhoneme { Symbol = parts.Initial, Duration = 0.06, StretchWeight = 0.0 });
-                body.Add(new SynthesizedPhoneme { Symbol = parts.Final, Duration = 0.20, StretchWeight = 1.0 });
+                leading.Add(new SynthesizedPhoneme
+                {
+                    Symbol = initial,
+                    Duration = item.LeadingFrames * MutaRenderer.FrameSeconds,
+                    StretchWeight = 0.0,
+                });
             }
-            else
+            body.Add(new SynthesizedPhoneme
             {
-                body.Add(new SynthesizedPhoneme { Symbol = phones[i], Duration = 0.20, StretchWeight = 1.0 });
-            }
-            map.Add(note.Id, new SynthesizedSyllable(leading, body, 0.0));
+                Symbol = item.Final,
+                Duration = item.BodyFrames * MutaRenderer.FrameSeconds,
+                StretchWeight = 1.0,
+            });
+            map.Add(notes[i].Id, new SynthesizedSyllable(leading, body, item.BodyOffset));
         }
         return map;
     }
 
-    IReadOnlyMap<string, SynthesizedSyllable> MergePhonemes()
+    /// <summary>
+    /// Pitch readback for the editor: points are (seconds, semitones), and a rest breaks the
+    /// line rather than being drawn as a drop to zero.
+    ///
+    /// Decimated to one point per 20 ms, which is finer than anyone can draw and a tenth of
+    /// the points the frames would produce.
+    /// </summary>
+    IReadOnlyList<IReadOnlyList<Point>> MergePitch()
     {
+        var segments = new List<IReadOnlyList<Point>>();
+        int step = Math.Max(1, (int)Math.Round(0.020 / MutaRenderer.FrameSeconds));
+
+        foreach (var product in mProducts.Values.OrderBy(p => p.StartTime))
+        {
+            List<Point>? current = null;
+            for (int f = 0; f < product.FramePitch.Length; f++)
+            {
+                double hz = product.FramePitch[f];
+                bool last = f == product.FramePitch.Length - 1;
+                if (hz <= 0.0)
+                {
+                    if (current is { Count: > 1 })
+                        segments.Add(current);
+                    current = null;
+                    continue;
+                }
+
+                if (current is null)
+                {
+                    current = new List<Point>();
+                    if (f > 0 && product.FramePitch[f - 1] > 0.0)
+                        f = Math.Max(0, f - 1);   // start the line where voicing starts
+                }
+
+                if (f % step != 0 && !last)
+                    continue;
+
+                double time = product.StartTime + f * MutaRenderer.FrameSeconds;
+                double semitones = 69.0 + 12.0 * Math.Log2(hz / 440.0);
+                current.Add(new Point(time, semitones));
+            }
+            if (current is { Count: > 1 })
+                segments.Add(current);
+        }
+        return segments;
+    }
+    IReadOnlyMap<string, SynthesizedSyllable> MergePhonemes()    {
         var merged = new Map<string, SynthesizedSyllable>();
         foreach (var product in mProducts.Values.OrderBy(p => p.StartTime))
             foreach (var pair in product.Phonemes)
