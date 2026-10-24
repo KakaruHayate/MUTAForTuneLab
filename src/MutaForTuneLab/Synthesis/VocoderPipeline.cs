@@ -43,7 +43,7 @@ public static class VocoderPipeline
     /// </summary>
     public static VocoderOutput Render(
         double[][] mgc, double[][] bap, double[] f0, bool[] silence,
-        double alpha, VocoderExpression expression, VocoderMode mode,
+        double[] alphas, VocoderExpression expression, VocoderMode mode,
         R2Vocoder? r2, out VocoderMode used)
     {
         int frames = f0.Length;
@@ -55,7 +55,7 @@ public static class VocoderPipeline
 
         if (mode == VocoderMode.WorldlineR2 && r2 is not null)
         {
-            var spGrid = Power(mgc, alpha, silence);
+            var spGrid = Power(mgc, alphas, silence);
             var apGrid = Aperiodicity(bap);
             used = mode;
             // R2 builds its own spectra: it does the grid conversion itself.
@@ -63,7 +63,7 @@ public static class VocoderPipeline
         }
 
         used = mode == VocoderMode.WorldlineR2 ? VocoderMode.WorldlineR11 : mode;
-        var sp = Power(mgc, alpha, silence);
+        var sp = Power(mgc, alphas, silence);
         var ap = Aperiodicity(bap);
         var settings = new VocoderSettings
         {
@@ -80,24 +80,10 @@ public static class VocoderPipeline
         return new VocoderOutput(samples, ModelRate);
     }
 
-    /// <summary>Per-bin gain, when one layer is being matched to another.</summary>
-    static double[][] ApplyGain(double[][] spectrum, double[]? gain)
-    {
-        if (gain is null)
-            return spectrum;
-        for (int f = 0; f < spectrum.Length; f++)
-        {
-            var row = spectrum[f];
-            for (int k = 0; k < row.Length && k < gain.Length; k++)
-                row[k] *= gain[k];
-        }
-        return spectrum;
-    }
-
     /// <summary>MGC to power spectrum, with rests held at the sentinel value.</summary>
-    public static double[][] Power(double[][] mgc, double alpha, ReadOnlySpan<bool> silence)
+    public static double[][] Power(double[][] mgc, double[] alphas, ReadOnlySpan<bool> silence)
     {
-        var sp = MgcSpectrum.Power(mgc, new[] { alpha }, Bins);
+        var sp = MgcSpectrum.Power(mgc, alphas, Bins);
         for (int f = 0; f < sp.Length; f++)
             if (silence[f])
                 Array.Fill(sp[f], 1e-12);

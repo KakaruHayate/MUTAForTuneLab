@@ -24,6 +24,13 @@ public sealed class RenderRequest
     public double GainDecibels { get; init; }
     /// <summary>False forces the model's own timbre, for comparing the two paths.</summary>
     public bool UseBank { get; init; } = true;
+
+    /// <summary>Energy in decibels per frame; null leaves the model's own dynamics.</summary>
+    public double[]? Energy { get; init; }
+    /// <summary>Timbre in −4..4 per frame; null means the default warping factor.</summary>
+    public double[]? Timbre { get; init; }
+    /// <summary>Husky in decibels per frame; null leaves the model's aperiodicity.</summary>
+    public double[]? Husky { get; init; }
 }
 
 public sealed record RenderResult(float[] Audio, double[] FramePitch, IReadOnlyList<RenderNote> Notes);
@@ -204,6 +211,10 @@ public static class MutaRenderer
                 $"model c0 {(mgc.Length > 0 ? modelSum / mgc.Length : 0):F3} source {(bank is null ? "model" : "bank")}");
         }
 
+        // Controls, applied where they belong in the chain: energy scales the frame's log
+        // gain, husky its aperiodicity, timbre the warping factor used to read the spectrum.
+        var alphas = ApplyControls(request, spectrumMgc, spectrumBap, frames);
+
         // Bend the contour onto the notes the user actually wrote.
         var f0Notes = MapNotes(notes, frames);
         pitch = F0Mechanism.Build(pitch, f0Notes, frames,
@@ -215,7 +226,7 @@ public static class MutaRenderer
             ? R2Registry.Get(request.R2Directory, request.MelModelPath)
             : null;
         var output = VocoderPipeline.Render(
-            spectrumMgc, spectrumBap, pitch, silence, request.Alpha, request.Expression,
+            spectrumMgc, spectrumBap, pitch, silence, alphas, request.Expression,
             request.Mode, r2, out _);
 
         cancellation.ThrowIfCancellationRequested();
@@ -318,6 +329,60 @@ public static class MutaRenderer
         engine.GetStream(stream, buffer);
         for (int f = 0; f < destination.Length; f++)
             destination[f] = buffer[f * width];
+    }
+
+    /// <summary>
+    /// The three parameter-domain controls, applied where the chain needs them.
+    ///
+    /// An absent curve is not applied at all, so a project that never draws one renders
+    /// exactly as before -- that equality is the acceptance test for these controls.
+    /// </summary>
+    static double[] ApplyControls(RenderRequest request, double[][] mgc, double[][] bap, int frames)
+    {
+        // Energy: decibels added to each frame's log gain.
+        if (request.Energy is { Length: > 0 } energy)
+        {
+            double perDecibel = Math.Log(10.0) / 20.0;
+            for (int f = 0; f < mgc.Length; f++)
+                mgc[f][0] += energy[Math.Min(f, energy.Length - 1)] * perDecibel;
+        }
+
+        // Husky: decibels of aperiodicity, weighted up towards the higher bands, where
+        // breath and rasp live.
+        if (request.Husky is { Length: > 0 } husky)
+        {
+            // The plan called for a ramp leaning on the higher bands, on the theory that
+            // breath lives there. Measured through the vocoder it made the control nearly
+            // inaudible: at the top of its range the lowest band moved 8 dB, from a weight
+            // of 0.006 to 0.016, and the output changed by a tenth of a decibel. A uniform
+            // lift moves the bands that carry the energy.
+            for (int f = 0; f < bap.Length; f++)
+            {
+                double value = husky[Math.Min(f, husky.Length - 1)];
+                if (value == 0.0)
+                    continue;
+                var frame = bap[f];
+                for (int band = 0; band < frame.Length; band++)
+                    frame[band] += value;
+            }
+        }
+
+        // Timbre: the warping factor each frame is read with. Built as an array so the
+        // spectrum stage can bucket equal values instead of warping every frame alone.
+        var alphas = new double[frames];
+        if (request.Timbre is { Length: > 0 } timbre)
+        {
+            for (int f = 0; f < frames; f++)
+            {
+                double value = timbre[Math.Min(f, timbre.Length - 1)];
+                alphas[f] = Math.Clamp(request.Alpha - 0.05 * value, 0.30, 0.80);
+            }
+        }
+        else
+        {
+            Array.Fill(alphas, request.Alpha);
+        }
+        return alphas;
     }
 
     /// <summary>The model writes an unvoiced sentinel rather than zero.</summary>

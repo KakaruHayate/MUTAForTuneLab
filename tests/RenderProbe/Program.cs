@@ -88,7 +88,7 @@ foreach (var (name, mgc, bap, f0, silence) in new[]
     ("bank", assembled.Mgc, assembled.Bap, bankF0, assembled.Silence),
 })
 {
-    var sp = VocoderPipeline.Power(mgc, 0.55, silence);
+    var sp = VocoderPipeline.Power(mgc, Fill(mgc.Length, 0.55), silence);
     var ap = VocoderPipeline.Aperiodicity(bap);
     foreach (var backend in new[] { VocoderBackend.World, VocoderBackend.ContinuousNoise })
     {
@@ -98,6 +98,59 @@ foreach (var (name, mgc, bap, f0, silence) in new[]
         };
         var samples = WorldlineVocoder.Synthesize(sp, ap, f0, settings, expression);
         AudioReport($"{name}/{backend}", samples.Select(v => (float)v).ToArray());
+    }
+}
+
+// Does the aperiodicity actually reach the output, and does the backend matter?
+Console.WriteLine();
+Console.WriteLine("aperiodicity response, both backends (bank parameters):");
+{
+    var sp = VocoderPipeline.Power(assembled.Mgc, Fill(total, 0.55), assembled.Silence);
+    foreach (var lift in new[] { 0.0, 20.0, 40.0 })
+    {
+        var bap = assembled.Bap.Select(f => f.Select(v => v + lift).ToArray()).ToArray();
+        var ap = VocoderPipeline.Aperiodicity(bap);
+        foreach (var backend in new[] { VocoderBackend.World, VocoderBackend.ContinuousNoise })
+        {
+            var settings = new VocoderSettings
+            {
+                FftSize = 2048, FramePeriodMs = 5.0, SampleRate = 48000, Backend = backend,
+            };
+            var samples = WorldlineVocoder.Synthesize(sp, ap, bankF0, settings, expression);
+            AudioReport($"bap+{lift:F0} {backend}", samples.Select(v => (float)v).ToArray());
+        }
+    }
+}
+// Each control at an extreme, against the untouched baseline. A control that changes
+// nothing is a control that is not wired.
+Console.WriteLine();
+Console.WriteLine("controls, one curve at a time:");
+{
+    var baseline = MutaRenderer.Render(new RenderRequest
+    {
+        Voice = voice, Notes = notes, TotalFrames = total,
+    }, CancellationToken.None);
+    double baseRms = Rms(baseline.Audio);
+
+    var curves = new (string Name, double[]? Energy, double[]? Timbre, double[]? Husky)[]
+    {
+        ("energy +12", Fill(total, 12.0), null, null),
+        ("energy -12", Fill(total, -12.0), null, null),
+        ("timbre +4", null, Fill(total, 4.0), null),
+        ("timbre -4", null, Fill(total, -4.0), null),
+        ("husky +20", null, null, Fill(total, 20.0)),
+        ("husky +40", null, null, Fill(total, 40.0)),
+    };
+    foreach (var (curveName, energy, timbre, husky) in curves)
+    {
+        var result = MutaRenderer.Render(new RenderRequest
+        {
+            Voice = voice, Notes = notes, TotalFrames = total,
+            Energy = energy, Timbre = timbre, Husky = husky,
+        }, CancellationToken.None);
+        double rms = Rms(result.Audio);
+        AudioReport(curveName, result.Audio);
+        Console.WriteLine($"      {20 * Math.Log10(rms / baseRms):+0.0;-0.0} dB vs baseline");
     }
 }
 
@@ -132,7 +185,7 @@ static void Aperiodicity(string label, double[][] bap)
 Console.WriteLine();
 Console.WriteLine("aperiodicity lever (bank parameters):");
 {
-    var sp = VocoderPipeline.Power(assembled.Mgc, 0.55, assembled.Silence);
+    var sp = VocoderPipeline.Power(assembled.Mgc, Fill(total, 0.55), assembled.Silence);
     foreach (var apDb in new[] { -80.0, 0.0, -20.0, -6.0 })
     {
         var bapCopy = assembled.Bap.Select(frame => frame.Select(v => apDb).ToArray()).ToArray();
@@ -145,6 +198,23 @@ Console.WriteLine("aperiodicity lever (bank parameters):");
         AudioReport($"ap={apDb:F0}dB", samples.Select(v => (float)v).ToArray());
     }
 }
+static double Rms(float[] audio)
+{
+    if (audio.Length == 0)
+        return 0.0;
+    double sum = 0.0;
+    foreach (var sample in audio)
+        sum += (double)sample * sample;
+    return Math.Sqrt(sum / audio.Length);
+}
+
+static double[] Fill(int length, double value)
+{
+    var array = new double[Math.Max(1, length)];
+    Array.Fill(array, value);
+    return array;
+}
+
 static double[] PitchFromLf0(double[] lf0)
 {
     var pitch = new double[lf0.Length];
