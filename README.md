@@ -1,11 +1,11 @@
 # MUTAForTuneLab
 
 A TuneLab voice extension that brings MUTA's singing voices to TuneLab: Chinese and
-Japanese lyrics, rendered through the **WORLD / WORLDLINE** vocoder.
+Japanese lyrics, rendered through the **worldline** vocoder (R1.1 by default, R2 optional).
 
-> Status: early. The package loads, enumerates the installed voices and declares its
-> whole parameter surface; synthesis is being ported stage by stage. See
-> [docs/roadmap.md](docs/roadmap.md).
+> Status: it sings. Both chains render through the host end to end, every declared
+> parameter reaches the audio, and the noise is reproducible across renders. See
+> [docs/roadmap.md](docs/roadmap.md) for what is left.
 
 ## What this package is (and is not)
 
@@ -14,8 +14,8 @@ Japanese lyrics, rendered through the **WORLD / WORLDLINE** vocoder.
   SONG070 voice model (`sinsy/`), with their licence.
 - **It is not** a MUTA voice bank. The `.voice/.inf/.bnk` files stay on your machine;
   the engine reads them out of an installed MUTA, or any folder you point it at. The
-  bundled Japanese model only supplies phoneme durations and F0 — the timbre of a
-  rendered voice always comes from the MUTA bank, never from it.
+  bundled Japanese model is the whole Japanese chain: labels, durations, F0 and its own
+  MGC/BAP envelope. It is used for Japanese only and is never mixed into a Chinese voice.
 - **It contains no MUTA binaries.** No MUTA application and none of its libraries ship
   here. HTS, WORLD and Sinsy are compiled from source, and their notices travel with
   the package in `THIRD-PARTY-NOTICES.md`.
@@ -24,7 +24,7 @@ Japanese lyrics, rendered through the **WORLD / WORLDLINE** vocoder.
 
 | Component | Requirement |
 | --- | --- |
-| TuneLab | 2.0.0 or newer (manifest `sdk-version` 1.0) |
+| TuneLab | 2.1.0 or newer (manifest `sdk-version` 1.1) |
 | OS | Windows x64 |
 | Voice data | a MUTA installation that has song voices |
 
@@ -39,9 +39,10 @@ powershell -ExecutionPolicy Bypass -File tools\pack-tlx.ps1
 Output: `artifacts\mutafortunelab.tlx`. Drag it onto TuneLab, or install from the
 Extensions sidebar.
 
-Compile against the **lowest** TuneLab you support (2.0.0) — the manifest declares
-`sdk-version` 1.0, so an accidental dependency on a newer API fails at compile time
-instead of at load time on an older host.
+Compile against the **lowest** TuneLab you support (2.1.0) — the manifest declares
+`sdk-version` 1.1, so an accidental dependency on a newer API fails at compile time
+instead of at load time on an older host. TuneLab 2.0.0 has no
+`IVoiceSynthesisSession` at all, so a synthesis engine cannot run there.
 
 ## Test (headless, no UI)
 
@@ -62,7 +63,7 @@ and that the declared parameter surface matches the spec.
 src/MutaForTuneLab/     the plugin (net8.0)
   Assets/               .voice / .inf / .bnk access
   Native/               P/Invoke helpers
-src/native/             C/C++ wrappers around HTS, worldline, Sinsy (planned)
+src/native/             C/C++ wrappers around HTS, worldline, Sinsy
 third_party/            pinned upstream sources, data and patches (no binaries)
 tools/                  build / pack / smoke
 docs/roadmap.md         what works today and what is next
@@ -78,7 +79,7 @@ This project stands on other people's work. Thank you to:
 | [WORLD](https://github.com/mmorise/World) | Masanori Morise and contributors | spectral envelope / aperiodicity synthesis underneath worldline | modified BSD |
 | [HTS — hts_engine API](http://hts-engine.sourceforge.net/) | HTS Working Group, Nagoya Institute of Technology | HMM acoustic model inference (durations, F0, mel-cepstrum) | modified BSD |
 | [Sinsy](http://sinsy.sourceforge.net/) | Sinsy Working Group, Nagoya Institute of Technology | Japanese text → phonemes and full-context labels | modified BSD |
-| HTS Voice "NIT SONG070 F001" 0.90 | Nagoya Institute of Technology, released by the Sinsy Working Group | Japanese phoneme durations and F0 | **CC BY 3.0** |
+| HTS Voice "NIT SONG070 F001" 0.90 | Nagoya Institute of Technology, released by the Sinsy Working Group | Japanese labels, durations, F0 and envelope | **CC BY 3.0** |
 | [TuneLab](https://github.com/LiuYunPlayer/TuneLab) | LiuYunPlayer and contributors | the host application and the plugin SDK | see upstream |
 
 Full licence texts and per-component details: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).

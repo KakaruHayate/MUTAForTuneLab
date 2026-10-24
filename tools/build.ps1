@@ -60,6 +60,14 @@ $package = Join-Path $repo "artifacts\package"
 # Only win-x64 native assets are loadable; drop whatever else the SDK staged.
 $stagedRuntimes = Join-Path $package "runtimes"
 if (Test-Path $stagedRuntimes) { Remove-Item $stagedRuntimes -Recurse -Force }
+
+# Symbols and ONNX Runtime's debug build are dead weight in a shipped package: 12 MB of
+# the download is `.pdb` and another 2 MB is DirectML.Debug, which nothing loads.
+Get-ChildItem $package -Filter '*.pdb' -File -ErrorAction SilentlyContinue |
+    Remove-Item -Force
+Get-ChildItem $package -Filter 'DirectML.Debug.*' -File -ErrorAction SilentlyContinue |
+    Remove-Item -Force
+
 Write-Host ""
 Write-Host "package: $package"
 Get-ChildItem $package -File | Sort-Object Name |

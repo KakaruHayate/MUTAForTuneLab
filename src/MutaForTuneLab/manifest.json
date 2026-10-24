@@ -3,8 +3,8 @@
   "name": "MUTA for TuneLab",
   "version": "0.1.0",
   "author": "KakaruHayate",
-  "description": "MUTA singing-voice engine for TuneLab: Chinese and Japanese chains, WORLD/worldline vocoder.",
-  "sdk-version": "1.0",
+  "description": "MUTA singing-voice engine for TuneLab: Chinese and Japanese chains, worldline R1.1 or R2 vocoder.",
+  "sdk-version": "1.1",
   "extensions": [
     {
       "type": "voice",

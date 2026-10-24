@@ -50,8 +50,10 @@ The model has not been modified. The full notice is in
 [`sinsy/voice/COPYING`](third_party/sinsy/voice/COPYING) and reproduced at the end of
 this file.
 
-The model is used only for phoneme durations and F0. The timbre of a rendered voice
-comes from the MUTA voice bank the user already has installed, never from this model.
+The model provides the whole Japanese chain: phoneme durations and F0 from its decision
+trees, and the MGC/BAP envelope that gives sinsy-jp its timbre. It is used for Japanese
+only -- the Chinese voices sing with MUTA's own model and bank, and this one is never
+mixed into them.
 
 ## 4. worldline — the vocoder
 

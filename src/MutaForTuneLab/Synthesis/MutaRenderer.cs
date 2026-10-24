@@ -256,7 +256,8 @@ public static class MutaRenderer
         ulong seed = request.Seed != 0UL ? request.Seed : VocoderPipeline.DeriveSeed(voice.Id, request.BlockStart);
         MutaDiagnostics.Log($"[MUTA] block {request.BlockStart:F3}s seed {seed}");
         var output = VocoderPipeline.Render(
-            spectrumMgc, spectrumBap, pitch, silence, alphas, request.Expression,
+            spectrumMgc, spectrumBap, pitch, silence, alphas,
+            FitExpression(request.Expression, pitch.Length),
             request.Mode, r2, out _, seed);
 
         cancellation.ThrowIfCancellationRequested();
@@ -444,6 +445,37 @@ public static class MutaRenderer
                 durations.Add(total);
         }
         return durations;
+    }
+    /// <summary>
+    /// Expression curves sized to the frames actually rendered.
+    ///
+    /// The session evaluates them on the block's frames, but a block does not always render
+    /// that many: the Japanese chain trims its output to where the singing is. Both share the
+    /// same 5 ms origin, so the curve only has to be clipped or held to the new length.
+    /// </summary>
+    static VocoderExpression FitExpression(VocoderExpression expression, int frames)
+    {
+        if (expression.Gender is null && expression.Tension is null
+            && expression.Breathiness is null && expression.Voicing is null)
+            return expression;
+
+        static double[]? Fit(double[]? curve, int count)
+        {
+            if (curve is null || curve.Length == count)
+                return curve;
+            var fitted = new double[count];
+            for (int i = 0; i < count; i++)
+                fitted[i] = curve[Math.Min(i, curve.Length - 1)];
+            return fitted;
+        }
+
+        return new VocoderExpression
+        {
+            Gender = Fit(expression.Gender, frames),
+            Tension = Fit(expression.Tension, frames),
+            Breathiness = Fit(expression.Breathiness, frames),
+            Voicing = Fit(expression.Voicing, frames),
+        };
     }
     /// <summary>The frame counts the assembler consumes, in the order it asks for them.</summary>
     static List<int> AssemblyFrames(IReadOnlyList<PhonemeGeometry> geometry)
