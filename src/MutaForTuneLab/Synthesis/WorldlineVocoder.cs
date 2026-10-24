@@ -42,6 +42,22 @@ public sealed class VocoderExpression
 }
 
 /// <summary>
+/// The grid a backend produces. The host accepts a sample rate per audio segment, so the
+/// plugin never resamples to the project rate: it declares what it made and lets the host
+/// mix. That is why R1.1 can stay at 48 kHz while R2 comes out at 44.1 kHz.
+/// </summary>
+public readonly record struct VocoderFormat(int SampleRate, double FramePeriodMs, int FftSize)
+{
+    public int FrameSamples => (int)Math.Round(SampleRate * FramePeriodMs / 1000.0);
+
+    /// <summary>48 kHz, 5 ms — the model's own rate, used by the continuous-noise backend.</summary>
+    public static VocoderFormat ModelRate { get; } = new(48000, 5.0, 2048);
+
+    /// <summary>44.1 kHz, hop 512 — the neural vocoder's rate.</summary>
+    public static VocoderFormat NeuralRate { get; } = new(44100, 512 * 1000.0 / 44100.0, 2048);
+}
+
+/// <summary>
 /// The vocoder: power spectrum + aperiodicity + F0 in, samples out.
 ///
 /// This is the only place that produces audio. Both backends take the parameters as

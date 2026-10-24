@@ -1,0 +1,13 @@
+{
+  "frames": 24,
+  "bins": 1025,
+  "source_rate": 48000,
+  "source_frame_ms": 5.0,
+  "source_fft": 2048,
+  "target_rate": 44100,
+  "target_hop": 512,
+  "target_fft": 2048,
+  "target_frame_ms": 11.609977324263038,
+  "target_frames": 10,
+  "silent_frames": 6
+}
