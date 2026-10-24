@@ -121,6 +121,31 @@ Console.WriteLine("aperiodicity response, both backends (bank parameters):");
         }
     }
 }
+// The four vocoder-side expression curves, one at a time.
+Console.WriteLine();
+Console.WriteLine("expression curves:");
+{
+    foreach (var (exprName, gender, breath) in new[]
+    {
+        ("neutral", 0.5, 0.5),
+        ("gender 0", 0.0, 0.5),
+        ("gender 1", 1.0, 0.5),
+        ("breath 0", 0.5, 0.0),
+        ("breath 1", 0.5, 1.0),
+    })
+    {
+        var result = MutaRenderer.Render(new RenderRequest
+        {
+            Voice = voice, Notes = notes, TotalFrames = total,
+            Expression = new VocoderExpression
+            {
+                Gender = Fill(total, gender),
+                Breathiness = Fill(total, breath),
+            },
+        }, CancellationToken.None);
+        AudioReport(exprName, result.Audio);
+    }
+}
 // Each control at an extreme, against the untouched baseline. A control that changes
 // nothing is a control that is not wired.
 Console.WriteLine();
