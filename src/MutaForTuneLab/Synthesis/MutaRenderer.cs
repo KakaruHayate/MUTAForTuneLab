@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using MutaForTuneLab.Assets;
 using MutaForTuneLab.Native;
+using TuneLab.SDK;
 
 namespace MutaForTuneLab.Synthesis;
 
@@ -75,12 +76,51 @@ public static class MutaRenderer
 
         cancellation.ThrowIfCancellationRequested();
 
-        var pitch = PitchFromLf0(lf0);
-        var silence = new bool[frames];
-        for (int f = 0; f < frames; f++)
-            silence[f] = pitch[f] <= 0.0;
+        // The bank, when the voice has one, replaces the model's own timbre: the model still
+        // supplies the pitch contour, but the frames come from recorded contexts.
+        BankResult? bank = null;
+        try
+        {
+            var assets = BankAssets.Load(voice);
+            bank = BankRenderer.Assemble(assets, notes, request.TotalFrames);
+        }
+        catch (Exception)
+        {
+            bank = null;
+        }
 
-        // Bend the model's pitch onto the notes the user actually wrote.
+        double[][] spectrumMgc;
+        double[][] spectrumBap;
+        bool[] silence;
+        double[] pitch;
+
+        if (bank is not null && bank.Mgc.Length == request.TotalFrames)
+        {
+            spectrumMgc = bank.Mgc;
+            spectrumBap = bank.Bap;
+            silence = bank.Silence;
+            pitch = CarrierFromNotes(notes, request.TotalFrames);
+            frames = request.TotalFrames;
+        }
+        else
+        {
+            spectrumMgc = mgc;
+            spectrumBap = bap;
+            pitch = PitchFromLf0(lf0);
+            silence = new bool[pitch.Length];
+            for (int f = 0; f < pitch.Length; f++)
+                silence[f] = pitch[f] <= 0.0;
+        }
+
+        {
+            double sum = 0.0; int voiced = 0;
+            for (int f = 0; f < spectrumMgc.Length; f++)
+                if (!silence[f]) { sum += spectrumMgc[f][0]; voiced++; }
+            TuneLabContext.Global.GetLogger().Debug(
+                $"[MUTA] frames {spectrumMgc.Length} voiced {voiced} mean c0 {(voiced > 0 ? sum / voiced : 0):F3} source {(bank is null ? "model" : "bank")}");
+        }
+
+        // Bend the contour onto the notes the user actually wrote.
         var f0Notes = MapNotes(notes, frames);
         pitch = F0Mechanism.Build(pitch, f0Notes, frames,
             exactP4: true, startRamp: true, p5: true);
@@ -91,7 +131,8 @@ public static class MutaRenderer
             ? R2Registry.Get(request.R2Directory, request.MelModelPath)
             : null;
         var output = VocoderPipeline.Render(
-            mgc, bap, pitch, silence, request.Alpha, request.Expression, request.Mode, r2, out _);
+            spectrumMgc, spectrumBap, pitch, silence, request.Alpha, request.Expression,
+            request.Mode, r2, out _);
 
         cancellation.ThrowIfCancellationRequested();
 
@@ -153,6 +194,21 @@ public static class MutaRenderer
         for (int f = 0; f < lf0.Length; f++)
             pitch[f] = lf0[f] <= -1e9 ? 0.0 : Math.Exp(lf0[f]);
         return pitch;
+    }
+
+    /// <summary>A flat pitch contour from the notes, for when the bank supplies the frames.</summary>
+    static double[] CarrierFromNotes(IReadOnlyList<RenderNote> notes, int frames)
+    {
+        var carrier = new double[frames];
+        foreach (var note in notes)
+        {
+            if (note.Rest)
+                continue;
+            double hz = 440.0 * Math.Pow(2.0, (note.Midi - 69) / 12.0);
+            for (int f = note.StartFrame; f < Math.Min(frames, note.StartFrame + note.Frames); f++)
+                carrier[f] = hz;
+        }
+        return carrier;
     }
 
     static List<F0Note> MapNotes(IReadOnlyList<RenderNote> notes, int frames)
