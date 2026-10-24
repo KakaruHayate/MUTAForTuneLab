@@ -1,4 +1,4 @@
-# 日语音素 → MUTA bank 音素 对照表（第三版）
+# 日语音素 → MUTA bank 音素 对照表（第四版）
 
 依据：`yanxi.inf` 的真实录音索引，判据是**过渡段是否存在**——声母组记了该右邻，或韵母组记了该左邻。
 
@@ -16,8 +16,8 @@
 
 | 统计 | 数量 |
 | --- | ---: |
-| proxy | 88 |
-| exact | 50 |
+| proxy | 96 |
+| exact | 48 |
 | hard-join | 8 |
 
 ## 逐项
@@ -28,7 +28,7 @@
 | a | vowel | — | a | exact |
 | i | vowel | — | i | exact |
 | u | vowel | — | u | exact |
-| e | vowel | — | ei | exact |
+| e | vowel | — | ie | exact |
 | o | vowel | — | o | exact |
 | ka | plain | k | a | exact |
 | ku | plain | k | u | exact |
@@ -36,36 +36,36 @@
 | ko | plain | k | uo | proxy |
 | ga | plain | g | a | exact |
 | gu | plain | g | u | exact |
-| ge | plain | g | ei | exact |
+| ge | plain | g | ei | proxy |
 | go | plain | g | uo | proxy |
 | ha | plain | h | a | exact |
 | hu | plain | h | u | exact |
-| he | plain | h | ei | exact |
+| he | plain | h | ei | proxy |
 | ho | plain | h | uo | proxy |
 | ba | plain | b | a | exact |
 | bi | plain | b | i | exact |
 | bu | plain | b | u | exact |
-| be | plain | b | ei | exact |
+| be | plain | b | ie | exact |
 | bo | plain | b | o | hard-join |
 | pa | plain | p | a | exact |
 | pi | plain | p | i | exact |
 | pu | plain | p | u | exact |
-| pe | plain | p | ei | exact |
+| pe | plain | p | ie | exact |
 | po | plain | p | o | exact |
 | ma | plain | m | a | exact |
 | mi | plain | m | i | exact |
 | mu | plain | m | u | exact |
-| me | plain | m | ei | exact |
+| me | plain | m | ie | exact |
 | mo | plain | m | o | exact |
 | na | plain | n | a | exact |
 | ni | plain | n | i | exact |
 | nu | plain | n | u | exact |
-| ne | plain | n | ei | exact |
+| ne | plain | n | ie | exact |
 | no | plain | n | uo | proxy |
 | fa | plain | f | a | exact |
 | fi | plain | f | i | hard-join |
 | fu | plain | f | u | exact |
-| fe | plain | f | ei | exact |
+| fe | plain | f | ei | proxy |
 | fo | plain | f | o | exact |
 | sa | plain | s | a | exact |
 | si | plain | s | if | exact |
@@ -75,22 +75,22 @@
 | za | plain | z | a | exact |
 | zi | plain | z | if | exact |
 | zu | plain | z | u | exact |
-| ze | plain | z | ei | exact |
+| ze | plain | z | ei | proxy |
 | zo | plain | z | uo | proxy |
 | ta | plain | t | a | exact |
 | ti | plain | t | i | exact |
 | tu | plain | t | u | exact |
-| te | plain | t | ie | proxy |
+| te | plain | t | ie | exact |
 | to | plain | t | uo | proxy |
 | da | plain | d | a | exact |
 | di | plain | d | i | exact |
 | du | plain | d | u | exact |
-| de | plain | d | ei | exact |
+| de | plain | d | ie | exact |
 | do | plain | d | uo | proxy |
 | ra | plain | l | a | proxy |
 | ri | plain | l | i | proxy |
 | ru | plain | l | u | proxy |
-| re | plain | l | ei | proxy |
+| re | plain | l | ie | proxy |
 | ro | plain | l | uo | proxy |
 | tsa | plain | c | a | proxy |
 | tsi | plain | c | if | proxy |
@@ -101,42 +101,42 @@
 | chi | plain | q | i | proxy |
 | chu | plain | q | iu | proxy |
 | che | plain | q | ie | proxy |
-| cho | plain | q | iu | proxy |
+| cho | plain | q | iao | proxy |
 | sha | plain | x | ia | proxy |
 | shi | plain | x | i | proxy |
 | shu | plain | x | iu | proxy |
 | she | plain | x | ie | proxy |
-| sho | plain | x | iu | proxy |
+| sho | plain | x | iao | proxy |
 | ja | plain | j | ia | proxy |
 | ji | plain | j | i | exact |
 | ju | plain | j | iu | proxy |
-| je | plain | j | ie | proxy |
-| jo | plain | j | iu | proxy |
+| je | plain | j | ie | exact |
+| jo | plain | j | iao | proxy |
 | kya | palatalized | q | ia | proxy |
 | kyi | palatalized | q | i | proxy |
 | kyu | palatalized | q | iu | proxy |
 | kye | palatalized | q | ie | proxy |
-| kyo | palatalized | q | iu | proxy |
+| kyo | palatalized | q | iao | proxy |
 | gya | palatalized | j | ia | proxy |
 | gyi | palatalized | j | i | proxy |
 | gyu | palatalized | j | iu | proxy |
 | gye | palatalized | j | ie | proxy |
-| gyo | palatalized | j | iu | proxy |
+| gyo | palatalized | j | iao | proxy |
 | hya | palatalized | x | ia | proxy |
 | hyi | palatalized | x | i | proxy |
 | hyu | palatalized | x | iu | proxy |
 | hye | palatalized | x | ie | proxy |
-| hyo | palatalized | x | iu | proxy |
+| hyo | palatalized | x | iao | proxy |
 | nya | palatalized | n | ia | hard-join |
 | nyi | palatalized | n | i | proxy |
 | nyu | palatalized | n | iu | proxy |
 | nye | palatalized | n | ie | proxy |
-| nyo | palatalized | n | iu | proxy |
+| nyo | palatalized | n | iao | proxy |
 | mya | palatalized | m | ia | hard-join |
 | myi | palatalized | m | i | proxy |
 | myu | palatalized | m | iu | proxy |
 | mye | palatalized | m | ie | proxy |
-| myo | palatalized | m | iu | proxy |
+| myo | palatalized | m | iao | proxy |
 | bya | palatalized | b | ia | hard-join |
 | byi | palatalized | b | i | proxy |
 | byu | palatalized | b | iu | hard-join |
@@ -151,22 +151,28 @@
 | ryi | palatalized | l | i | proxy |
 | ryu | palatalized | l | iu | proxy |
 | rye | palatalized | l | ie | proxy |
-| ryo | palatalized | l | iu | proxy |
+| ryo | palatalized | l | iao | proxy |
 | tya | palatalized | q | ia | proxy |
 | tyi | palatalized | q | i | proxy |
 | tyu | palatalized | q | iu | proxy |
 | tye | palatalized | q | ie | proxy |
-| tyo | palatalized | q | iu | proxy |
+| tyo | palatalized | q | iao | proxy |
 | dya | palatalized | j | ia | proxy |
 | dyi | palatalized | j | i | proxy |
 | dyu | palatalized | j | iu | proxy |
 | dye | palatalized | j | ie | proxy |
-| dyo | palatalized | j | iu | proxy |
+| dyo | palatalized | j | iao | proxy |
 | ya | zero-initial | y | ia | proxy |
 | yu | zero-initial | y | iu | proxy |
-| yo | zero-initial | y | iu | proxy |
+| yo | zero-initial | y | iao | proxy |
 | ye | zero-initial | y | ie | proxy |
 | wa | zero-initial | w | ua | proxy |
+| wo | zero-initial | w | uo | proxy |
+| va | foreign | w | ua | proxy |
+| vi | foreign | w | u | proxy |
+| vu | foreign | w | u | proxy |
+| ve | foreign | w | uo | proxy |
+| vo | foreign | w | uo | proxy |
 | ki | palatalized | q | i | proxy |
 | gi | palatalized | j | i | proxy |
 | hi | palatalized | x | i | proxy |
