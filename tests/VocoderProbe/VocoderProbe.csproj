@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>VocoderProbe</RootNamespace>
+    <AssemblyName>VocoderProbe</AssemblyName>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="..\..\src\MutaForTuneLab\Native\NativeLibraries.cs" Link="NativeLibraries.cs" />
+    <Compile Include="..\..\src\MutaForTuneLab\Synthesis\MgcSpectrum.cs" Link="MgcSpectrum.cs" />
+    <Compile Include="..\..\src\MutaForTuneLab\Synthesis\BapExpand.cs" Link="BapExpand.cs" />
+    <Compile Include="..\..\src\MutaForTuneLab\Synthesis\OutputGate.cs" Link="OutputGate.cs" />
+    <Compile Include="..\..\src\MutaForTuneLab\Synthesis\WorldlineVocoder.cs" Link="WorldlineVocoder.cs" />
+  </ItemGroup>
+</Project>

@@ -40,7 +40,8 @@ def main() -> int:
 
     if args.mgc and args.mgc.exists():
         data = np.load(args.mgc)
-        mgc = np.ascontiguousarray(data["mgc"][:FRAMES], dtype=np.float64)
+        start = max(0, int(np.argmax(data["f0"] > 0.0)) - 1)
+        mgc = np.ascontiguousarray(data["mgc"][start:start + FRAMES], dtype=np.float64)
         source = str(args.mgc.name)
     else:
         rng = np.random.default_rng(2026)

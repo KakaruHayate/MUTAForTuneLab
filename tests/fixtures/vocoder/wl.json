@@ -1,0 +1,12 @@
+{
+  "frames": 40,
+  "frames_samples": 240,
+  "fft_size": 2048,
+  "bins": 1025,
+  "frame_period_ms": 5.0,
+  "sample_rate": 48000,
+  "samples": 9361,
+  "seed": 1,
+  "source": "zh_yanxi_params.npz",
+  "silent_frames": 12
+}

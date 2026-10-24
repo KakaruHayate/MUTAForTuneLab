@@ -20,17 +20,8 @@ public sealed class MutaHts : IDisposable
 
     static MutaHts()
     {
-        NativeLibrary.SetDllImportResolver(typeof(MutaHts).Assembly, Resolve);
-    }
-
-    static IntPtr Resolve(string name, Assembly assembly, DllImportSearchPath? searchPath)
-    {
-        if (!name.Equals(Library, StringComparison.OrdinalIgnoreCase))
-            return IntPtr.Zero;
-
-        string directory = Path.GetDirectoryName(assembly.Location) ?? ".";
-        string candidate = Path.Combine(directory, "muta_hts.dll");
-        return File.Exists(candidate) ? NativeLibrary.Load(candidate) : IntPtr.Zero;
+        // One resolver per assembly, shared with the vocoder and the Sinsy front end.
+        NativeLibraries.EnsureResolver();
     }
 
     IntPtr mHandle;

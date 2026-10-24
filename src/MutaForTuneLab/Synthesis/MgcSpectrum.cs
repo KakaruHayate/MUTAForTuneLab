@@ -113,7 +113,7 @@ public static class MgcSpectrum
             var warped = new double[order + 1];
             for (int f = 0; f < frames; f++)
             {
-                FrequencyTransformInto(mgc[f], alpha, order, warped);
+                FrequencyTransformInto(mgc[f], -alpha, order, warped);
                 var magnitude = new double[bins];
                 MagnitudeInto(warped, magnitude);
                 for (int k = 0; k < bins; k++)
@@ -146,7 +146,7 @@ public static class MgcSpectrum
         {
             foreach (int f in indices)
             {
-                FrequencyTransformInto(mgc[f], alpha, order, buffer);
+                FrequencyTransformInto(mgc[f], -alpha, order, buffer);
                 var magnitude = new double[bins];
                 MagnitudeInto(buffer, magnitude);
                 for (int k = 0; k < bins; k++)
