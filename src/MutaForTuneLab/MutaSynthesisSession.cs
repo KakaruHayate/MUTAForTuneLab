@@ -734,6 +734,7 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
             return null;
 
         double frameSeconds = MutaRenderer.FrameSeconds;
+        var properties = snapshot.PartProperties;
         if (snapshot.Notes.Count != block.Notes.Count)
             TuneLabContext.Global.GetLogger().Warning(
                 $"[MUTA] snapshot has {snapshot.Notes.Count} notes but block has {block.Notes.Count}");
@@ -806,7 +807,11 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
             }
             bool isBreath = breath[i];
             bool isContinuation = continuation[i];
-            double bankPitchOffset = NoteProperty(note.Properties, Declarations.KeyBankPitchOffset, 0.0);
+            // A per-note value wins; an older project that only has the removed part-level
+            // offset still gets that value as the fallback for notes with no own setting.
+            double bankPitchOffset = NoteProperty(note.Properties, Declarations.KeyBankPitchOffset, double.NaN);
+            if (double.IsNaN(bankPitchOffset))
+                bankPitchOffset = properties.GetDouble(Declarations.KeyBankPitchOffset, 0.0);
             notes.Add(new RenderNote(startFrame, frames, note.Pitch.Value,
                 isBreath ? "sp" : syllable.LabelText, isBreath, lyrics[i],
                 isBreath ? null : syllable.ModelInitial,
@@ -824,7 +829,6 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
         for (int i = 0; i < totalFrames; i++)
             positions[i] = block.StartTime + i * frameSeconds;
 
-        var properties = snapshot.PartProperties;
         var request = new RenderRequest
         {
             Voice = mVoice,
