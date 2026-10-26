@@ -26,7 +26,6 @@ public static class Declarations
     // —— note / 音素属性 ——
     public const string KeyPronunciation = "pronunciation";
     public const string KeyPreutteranceMs = "preutterance_ms";
-    public const string KeyNoteBankPitchNote = "bank_pitch_note";
     public const string KeyPhonemeDurationScale = "duration_scale";
 
     // —— automation 轨 ——
@@ -87,23 +86,12 @@ public static class Declarations
                     new(PropertyValue.Create("ja"), L.Tr("Japanese", "日文")),
                 }).WithDefault(PropertyValue.Create("zh"))
             },
+
             {
-                (KeyBankPitchMode, L.Tr("Bank pitch (sample region)", "换采样（选块音区）")),
-                ComboBoxConfig.Create(new List<ComboBoxItem>
-                {
-                    new(PropertyValue.Create("auto"), L.Tr("Follow the note", "跟随音符音高")),
-                    new(PropertyValue.Create("offset"), L.Tr("Offset by semitones", "按半音偏移")),
-                    new(PropertyValue.Create("fixed"), L.Tr("Fixed pitch", "固定音区")),
-                }).WithDefault(PropertyValue.Create("auto"))
-            },
-            {
-                (KeyBankPitchOffset, L.Tr("Bank pitch offset (semitones)", "换采样偏移（半音）")),
+                (KeyBankPitchOffset, L.Tr("Bank pitch offset (semitones)", "音区偏移（半音）")),
                 SliderConfig.Integer(0, -24, 24)
             },
-            {
-                (KeyBankPitchNote, L.Tr("Bank pitch note (MIDI)", "换采样音区（MIDI）")),
-                SliderConfig.Integer(60, 36, 96)
-            },
+
             {
                 (KeyPhonemeSpeed, L.Tr("Phoneme speed", "语速")),
                 SliderConfig.Linear(1.0, 0.5, 2.0)
@@ -140,7 +128,6 @@ public static class Declarations
         {
             { (KeyPronunciation, L.Tr("Pronunciation override", "发音覆盖")), TextBoxConfig.Create() },
             { (KeyPreutteranceMs, L.Tr("Preutterance (ms)", "辅音提前量（ms）")), SliderConfig.Integer(0, -200, 200) },
-            { (KeyNoteBankPitchNote, L.Tr("Bank pitch note (MIDI)", "换采样音区（MIDI）")), SliderConfig.Integer(0, 0, 96) },
         };
         return ObjectConfig.Create(properties);
     }

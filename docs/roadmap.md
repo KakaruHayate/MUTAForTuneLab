@@ -17,8 +17,8 @@ What works today, and what is next. No dates — this is a spare-time port.
       (mel.onnx ships, the vocoder weights are the user's own). DirectML is used when the
       driver supports it, with a CPU fallback.
 - [x] **Parameters**: energy, timbre and husky act on the model output; gender, tension,
-      breathiness and voicing go to the vocoder; the sample-region switch
-      (`auto`/`offset`/`fixed`), phoneme speed, output gain and vocoder tier are part settings.
+      breathiness and voicing go to the vocoder; the sample-region offset
+      (semitones), phoneme speed, output gain and vocoder tier are part settings.
       An untouched project renders bit-identically to one without the curves.
 - [x] **Session behaviour**: blocks cut in the silence between phrases, incremental
       re-synthesis driven by a note-and-curve signature, phoneme geometry resolved by the

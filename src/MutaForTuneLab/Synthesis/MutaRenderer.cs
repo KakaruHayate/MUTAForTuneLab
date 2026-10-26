@@ -48,7 +48,7 @@ public sealed class RenderRequest
     public ulong Seed { get; init; }
 
     /// <summary>"auto" follows each note, "offset" shifts it, "fixed" pins one region.</summary>
-    public string BankPitchMode { get; init; } = "auto";
+    public string BankPitchMode { get; init; } = "offset";
     /// <summary>Semitone shift applied to the pitch the bank is asked for.</summary>
     public double BankPitchOffset { get; init; }
     /// <summary>MIDI note the bank region is pinned to, when the mode is "fixed".</summary>

@@ -172,11 +172,9 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
                 mFrontend = CreateFrontend();
                 mGlobalVersion++;
             });
-            settings.StringField(Declarations.KeyBankPitchMode, "auto").Modified.Subscribe(() => mGlobalVersion++);
             settings.DoubleField(Declarations.KeyPhonemeSpeed, 1.0).Modified.Subscribe(() => mGlobalVersion++);
             settings.DoubleField(Declarations.KeyOutputGain, 0.0).Modified.Subscribe(() => mGlobalVersion++);
             settings.DoubleField(Declarations.KeyBankPitchOffset, 0.0).Modified.Subscribe(() => mGlobalVersion++);
-            settings.DoubleField(Declarations.KeyBankPitchNote, 0.0).Modified.Subscribe(() => mGlobalVersion++);
         }
     }
 
@@ -834,9 +832,11 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
             Mode = VocoderPipeline.ParseMode(properties.GetString(Declarations.KeyVocoderMode, "worldline")),
             Speed = properties.GetDouble(Declarations.KeyPhonemeSpeed, 1.0),
             GainDecibels = properties.GetDouble(Declarations.KeyOutputGain, 0.0),
-            BankPitchMode = properties.GetString(Declarations.KeyBankPitchMode, "auto"),
+            // The UI now exposes only the register offset; selecting a fixed region or
+            // following the note implicitly is gone.
+            BankPitchMode = "offset",
             BankPitchOffset = properties.GetDouble(Declarations.KeyBankPitchOffset, 0.0),
-            BankPitchNote = (int)properties.GetDouble(Declarations.KeyBankPitchNote, 0.0),
+            BankPitchNote = 0,
             Energy = Curve(snapshot, Declarations.KeyEnergy, positions),
             Timbre = Curve(snapshot, Declarations.KeyTimbre, positions),
             Husky = Curve(snapshot, Declarations.KeyHusky, positions),

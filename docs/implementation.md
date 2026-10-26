@@ -152,7 +152,7 @@ part 的属性（`language = zh | ja`），三个 bank 都能用两种前端唱�
 | gender / tension / breathiness / voicing | 声码器 | 逐帧数组直传 worldline |
 | phoneme_speed | 时长 | HTS 引擎的 speed |
 | output_gain_db | 输出 | 软限幅前的线性增益 |
-| bank_pitch_mode/offset/note | 选块音区 | 决定请求录音的音高码，音频仍按音符自身音高播放 |
+| bank_pitch_offset | 选块音区 | 按半音偏移决定请求录音的音高码，音频仍按音符自身音高播放 |
 
 不画曲线时参数为空，渲染结果与接线前逐样本相同。
 
