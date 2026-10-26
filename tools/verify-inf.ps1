@@ -21,7 +21,7 @@
 
 .EXAMPLE
   powershell -ExecutionPolicy Bypass -File tools\verify-inf.ps1
-  powershell -ExecutionPolicy Bypass -File tools\verify-inf.ps1 -Inf "D:\voices\yanxi.inf"
+  powershell -ExecutionPolicy Bypass -File tools\verify-inf.ps1 -Inf "C:\path\to\voice\yanxi.inf"
 #>
 [CmdletBinding()]
 param(

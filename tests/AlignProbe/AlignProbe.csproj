@@ -7,7 +7,7 @@
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <AssemblyName>AlignProbe</AssemblyName>
     <RootNamespace>AlignProbe</RootNamespace>
-    <TuneLabDir Condition="'$(TuneLabDir)' == ''">J:\MUTA\TuneLab-2.1.1</TuneLabDir>
+    <TuneLabDir Condition="'$(TuneLabDir)' == ''">$(TUNELAB_DIR)</TuneLabDir>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.ML.OnnxRuntime.DirectML" Version="1.24.4" />

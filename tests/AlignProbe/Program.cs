@@ -9,7 +9,9 @@ using MutaForTuneLab.Synthesis;
 // up to the frame count. No guessing: everything printed here is read from the engine.
 MutaDiagnostics.Sink = message => Console.WriteLine("  [log] " + message);
 
-string package = args.Length > 0 ? args[0] : @"J:\MUTAForTuneLab\artifacts\package";
+string package = args.Length > 0
+    ? args[0]
+    : Path.Combine(Directory.GetCurrentDirectory(), "artifacts", "package");
 string voiceRoot = args.Length > 1
     ? args[1]
     : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Muta", "voice", "song");
@@ -64,7 +66,7 @@ if (bankVoice is not null)
                 .Select(x => $"{x.Key}:{x.Count()}"));
             dump.AppendLine($"{g.Name}\t{g.Items.Count}\t{lefts}");
         }
-        string inventory = Path.Combine(@"J:\MUTAForTuneLab\artifacts\renders", $"bank-{bankVoice.Id}-inventory.txt");
+        string inventory = Path.Combine(Path.GetTempPath(), $"bank-{bankVoice.Id}-inventory.txt");
         File.WriteAllText(inventory, dump.ToString());
         Console.WriteLine($"  inventory: {inventory} ({inf.Groups.Count} groups)");
     }

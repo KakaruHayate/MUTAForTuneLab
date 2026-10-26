@@ -1,142 +1,218 @@
-# MUTAForTuneLab
+# MUTA for TuneLab
 
-A TuneLab voice extension that brings MUTA's singing voices to TuneLab: Chinese and
-Japanese lyrics, rendered through the **worldline** vocoder (R1.1 by default, R2 optional).
+[![DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/KakaruHayate/MUTAForTuneLab)
+[![Latest release](https://img.shields.io/github/v/release/KakaruHayate/MUTAForTuneLab)](https://github.com/KakaruHayate/MUTAForTuneLab/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-> Status: it sings. Both chains render through the host end to end, every declared
-> parameter reaches the audio, and the noise is reproducible across renders. See
-> [docs/roadmap.md](docs/roadmap.md) for what is left.
+A TuneLab voice extension that sings with **MUTA voice banks**. It reads the `.voice`,
+`.inf` and `.bnk` files of an installed MUTA voice, and renders Chinese or Japanese lyrics
+inside TuneLab through the **worldline** vocoder (R1.1 by default, R2 optional).
 
-## What's new
+The plugin contains no MUTA binaries, source code or voice banks: it is an independent
+implementation that reads the voice-data formats and drives its own HTS + worldline chain.
 
-Compared with singing the same banks in MUTA itself. MUTA's own feature set could not be
-audited item by item, so this lists what the integration adds, not everything upstream may
-have.
+**[中文说明](README.zh-CN.md)**
 
-**Editing**
+---
 
-- **Pitch is absolute.** Drawing a line sets each frame's F0 outright — no clamp, no glide,
-  no model residue on the frames you drew; frames you did not draw keep the model's shaped
-  contour. Vibrato rides the host's deviation channel and is audible and visible.
-- **Pinned phonemes.** Any note can have its leading/body phonemes pinned and edited; the
-  engine sings exactly those. Chinese rebuilds the syllable from them, Japanese reverses
-  them to kana (`k`+`y`+`a` → きゃ) including youon.
-- **Continuation marks.** `-` and `+` are passengers: no new slot, no second attack -- the
-  chain head's vowel is stretched across the whole hold, and the editor shows it that way.
-  Pinned notes are always content.
-- **Manual breaths.** A note with the lyric `br` (or `sp`) is a breath: never pitched, taken
-  from the bank's own `.inf` tail PCM (band-passed noise when the bank has none), mixed at
-  the level MUTA uses (~-13 dB under the singing).
-- **Portamento straddles the beat.** A pitch change glides from about 60-90 ms before the
-  boundary to about 30 ms after it, in an S curve, instead of snapping up on the beat.
-- **Seven automation lanes** (Energy, Timbre, Husky, Gender, Tension, Breathiness, Voicing),
-  plus phoneme speed, output gain and a per-note bank register offset in semitones.
-- **Per-part language**, independent of timbre: one bank sings Chinese or Japanese; switching
-  language changes only the front end and the labels.
+## Features
 
-**Rendering**
+### Singing
 
-- **worldline** vocoder, R1.1 by default, R2 (external neural vocoder) optional.
-- Blocks are planned as a pure function, cached per block, and re-rendered only where data
-  changed; the analysis noise is seeded per block, so the same project renders the same
-  waveform.
-- **Failures are visible**: if the labels emit a different phone sequence than the front end
-  predicted, the block is marked failed and the export is refused rather than shifted.
+- **Chinese and Japanese from one voice bank.** Language is a part setting: switching it
+  changes only the front end (pinyin labels vs. Sinsy labels), not the timbre.
+- **MUTA-style consonant timing.** Consonants use MUTA's own length table, capped at half
+  the note, instead of the model's longer state durations. This is what makes short notes
+  articulate instead of smearing.
+- **Continuations.** `-` and `+` are melisma passengers: the head note's vowel is stretched
+  across the hold, with no second attack. The editor shows the same span the audio uses.
+- **Portamento across the beat.** Pitch changes start 60–90 ms before the beat and settle
+  about 30 ms after it, instead of snapping on the beat.
+- **Manual breaths.** A note with lyric `br` or `sp` is a breath: it takes a fragment of the
+  bank's own `.inf` tail PCM when available (band-passed noise otherwise) and is mixed
+  underneath the singing at roughly the level MUTA uses.
+- **Pinned phonemes.** Any note can be pinned to explicit leading/body phonemes. The engine
+  sings those symbols, and the bank follows their durations, stretch weights and body offset.
+  Dragging a phoneme boundary re-renders the affected block.
+- **Per-note bank register offset.** Each note can select a different recorded register from
+  the bank by a semitone offset; the note's own pitch is unchanged.
 
-**Fixes that are ours, not MUTA's**
+### Editing integration
 
-- A geminate's closure no longer eats the following note's vowel; the note after っ gets a
-  shorter onset cap.
-- A note is never cut at a barline (that used to make Sinsy sing it twice).
-- The limiter leaves headroom for the host's 48 k→44.1 k resample (0.9 ceiling, not 0.95).
-- The score reaches Sinsy in memory; no temporary files are written.
+- **Absolute pitch is authoritative.** Where the host's pitch channel has a value, that value
+  sets the frame's F0 exactly. Unpainted frames keep the note/model contour. Vibrato rides
+  the host's deviation channel and is applied additively.
+- **Seven automation lanes:** Energy, Timbre and Husky act on the acoustic model output;
+  Gender, Tension, Breathiness and Voicing go to the vocoder. Phoneme speed and output gain
+  are part settings.
+- **Phoneme geometry** is resolved by TuneLab's own `PhonemeLayout`, so the band in the
+  editor and the rendered audio come from the same numbers.
+- **Incremental rendering.** Blocks are planned as a pure function and cached. A note edit
+  invalidates its block; a curve edit invalidates only blocks overlapping the edited time
+  range; a part setting invalidates everything.
+- **Deterministic noise.** The analysis noise is seeded from the voice and block start, so
+  the same project renders the same waveform.
 
-**Packaging**
+### Vocoder
 
-- Two builds: **full** (with R2 + ONNX Runtime) and **lite** (worldline R1.1 only, ~4.9 MB
-  vs 19.9 MB, no GPU driver surface).
+- **worldline R1.1** (default, built in): continuous-noise synthesis at 48 kHz. No extra
+  installation.
+- **worldline R2** (optional, full build): a user-supplied neural vocoder at 44.1 kHz,
+  running through ONNX Runtime; DirectML is used when available, otherwise CPU. See
+  [R2 vocoder](#r2-vocoder-optional).
 
-## What this package is (and is not)
-
-- **It is** the engine, three native libraries built from open source, and the Japanese
-  assets that make Japanese singing self-contained: Sinsy's phoneme tables and the NIT
-  SONG070 voice model (`sinsy/`), with their licence.
-- **It is not** a MUTA voice bank, and it is not a copy of MUTA's engine: it is an
-  independent implementation that reads MUTA's voice data. The `.voice/.inf/.bnk` files
-  stay on your machine; the engine reads them out of an installed MUTA, or any folder you
-  point it at. What ships for Japanese is the *front end* — Sinsy's tables and the NIT
-  SONG070 model supply labels, durations and timing; the timbre still comes from your bank.
-- **It contains no MUTA binaries.** No MUTA application and none of its libraries ship
-  here. HTS, WORLD and Sinsy are compiled from source, and their notices travel with
-  the package in `THIRD-PARTY-NOTICES.md`.
+---
 
 ## Requirements
 
 | Component | Requirement |
 | --- | --- |
-| TuneLab | 2.1.0 or newer (manifest `sdk-version` 1.1) |
+| TuneLab | 2.1.0 or newer (SDK 1.1) |
 | OS | Windows x64 |
-| Voice data | a MUTA installation that has song voices |
+| Voice data | an installed MUTA with song voices, or a folder containing `<name>.voice`, `<name>.inf`, `<name>.bnk` |
+| .NET (build only) | .NET 8 SDK, CMake, Visual Studio 2022 C++ tools |
 
-## Build
+The plugin does not include a voice bank. Install MUTA separately, or point the extension at
+a directory containing a bank.
+
+## Installation
+
+1. Download **`MUTAForTuneLab-<version>-win-x64.tlx`** (full) or
+   **`...-win-x64-lite.tlx`** (R1.1 only) from
+   [Releases](https://github.com/KakaruHayate/MUTAForTuneLab/releases).
+2. In TuneLab, open the extension manager and install the `.tlx` file.
+3. Restart TuneLab if it was already running.
+4. Select a MUTA voice for the part. If the bank is not in the default MUTA directory, add
+   its folder under **Settings → Extensions → MUTA for TuneLab → Voice folders**.
+
+### Full vs. lite
+
+| Build | Contents | Size |
+| --- | --- | --- |
+| Full | worldline R1.1 + R2 + ONNX Runtime + `mel.onnx` | ~20 MB |
+| Lite | worldline R1.1 only, no ONNX/GPU surface | ~5 MB |
+
+Both builds produce the same output on R1.1.
+
+## Usage
+
+1. Create a voice part and choose a MUTA voice.
+2. Set the part **Language** to Chinese or Japanese. The lyrics should be the language's
+   normal text (pinyin syllables for Chinese, kana for Japanese); the front end supplies
+   the phonemes.
+3. Draw notes and lyrics. The phoneme band shows what will actually be sung.
+4. Drag a phoneme boundary to lock the note's phonemes and adjust their durations; edit a
+   symbol in place by double-clicking it.
+5. Use the note properties for **Pronunciation override**, **Preutterance**, and
+   **Bank pitch offset** (semitones). The offset chooses which recorded register the bank
+   uses; it does not transpose the note.
+6. Draw pitch and vibrato with TuneLab's own tools. Pitch is absolute where painted.
+7. Shape the take with the automation lanes, phoneme speed and output gain.
+8. Choose the vocoder in the part's **Vocoder** setting.
+
+Very long notes are rendered in one block up to 60 seconds; a block longer than that fails
+with a clear message instead of exhausting memory. If a block fails, its status is shown in
+the editor rather than silently shifted.
+
+## R2 vocoder (optional)
+
+R2 is only in the **full** build. It needs a vocoder package you provide:
+
+1. Create a folder containing:
+   - `vocoder.yaml`
+   - the `.onnx` model named by `model:` in that yaml
+2. Use a model compatible with the bundled mel front end (44.1 kHz, hop 512, 128 mel bins,
+   fft 2048), for example an OpenUtau `pc_nsf_hifigan_44.1k_hop512_*` package.
+3. Example `vocoder.yaml`:
+
+```yaml
+name: pc_nsf_hifigan
+model: pc_nsf_hifigan.onnx
+sample_rate: 44100
+hop_size: 512
+fft_size: 2048
+num_mel_bins: 128
+```
+
+4. In TuneLab: **Settings → Extensions → MUTA for TuneLab → R2 vocoder folder**, choose that
+   folder.
+5. Set the part **Vocoder** to *WORLDLINE R2 (external vocoder)*.
+
+`mel.onnx` ships with the full package; do not copy it into the vocoder folder. If R2 is
+missing or misconfigured, the render falls back to R1.1 and the reason is logged.
+
+## How this differs from MUTA
+
+This is not a re-hosted copy of MUTA. It is a TuneLab-native engine that reads MUTA voice
+data and reproduces the parts of MUTA's singing behaviour that matter for a bank to sound
+right.
+
+| Area | MUTA standalone | MUTA for TuneLab |
+| --- | --- | --- |
+| Host | MUTA editor/project | TuneLab editor, notes, pitch/vibrato, automation, phoneme band |
+| Project files | MUTA projects | TuneLab projects; MUTA project files are not imported |
+| Pitch | MUTA's pitch editing | TuneLab pitch channel; absolute where painted |
+| Phoneme editing | MUTA's phoneme tools | TuneLab pinned phonemes; durations/weights/body offset are honoured by the bank |
+| Vocoder | MUTA's built-in chain | worldline R1.1 / optional R2 |
+| Japanese front end | MUTA's | Sinsy tables + NIT SONG070 voice for labels/timing; timbre still from your bank |
+| Rendering | one engine instance | incremental blocks, per-block cache, deterministic noise, 60 s cap |
+| Binaries | MUTA application | no MUTA binary, source or voice bank is included |
+
+Deliberate behaviour compatibility includes the consonant length table, the slot assembly
+and overlap rules, continuation handling, breath level and portamento shape. Everything is
+implemented independently; the voice data is read from your installation.
+
+Known limitations:
+
+- Windows x64 only.
+- A single block is capped at 60 s; longer notes fail rather than stream.
+- R2 quality depends entirely on the vocoder package you provide.
+- Japanese needs the bundled Sinsy dictionary/voice; no external Sinsy install is required.
+
+## Build from source
 
 ```powershell
-# TuneLab SDK assemblies are provided by the host, so point at an installation.
+git clone https://github.com/KakaruHayate/MUTAForTuneLab.git
+cd MUTAForTuneLab
+
+# native: HTS wrapper, worldline, Sinsy label builder
+powershell -ExecutionPolicy Bypass -File tools\build-native.ps1
+
+# managed + package, pointing at a TuneLab installation
 powershell -ExecutionPolicy Bypass -File tools\build.ps1 -TuneLabDir "C:\Program Files\TuneLab"
+
+# build the .tlx
 powershell -ExecutionPolicy Bypass -File tools\pack-tlx.ps1
 ```
 
-Output: `artifacts\mutafortunelab.tlx`. Drag it onto TuneLab, or install from the
-Extensions sidebar.
-
-Compile against the **lowest** TuneLab you support (2.1.0) — the manifest declares
-`sdk-version` 1.1, so an accidental dependency on a newer API fails at compile time
-instead of at load time on an older host. TuneLab 2.0.0 has no
-`IVoiceSynthesisSession` at all, so a synthesis engine cannot run there.
-
-## Test (headless, no UI)
-
-TuneLab 2.1.1 and newer ship `TuneLab.Cli.exe`, which can install the package and
-enumerate what it provides without a window:
+Lite build:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools\smoke.ps1
+dotnet build src\MutaForTuneLab\MutaForTuneLab.csproj -c Release `
+  -p:TuneLabDir="C:\Program Files\TuneLab" -p:MutaLite=true `
+  -p:OutputPath=artifacts\package-lite\ -t:Rebuild
+powershell -ExecutionPolicy Bypass -File tools\pack-tlx.ps1 `
+  -Package artifacts\package-lite -Output artifacts\MUTAForTuneLab-lite.tlx
 ```
 
-It installs the freshly packed `.tlx` into a throwaway data directory
-(`TUNELAB_DATA_DIR`), then asserts that the engine loads, that a voice bank is found,
-and that the declared parameter surface matches the spec.
+Tests:
 
-## Layout
-
-```text
-src/MutaForTuneLab/     the plugin (net8.0)
-  Assets/               .voice / .inf / .bnk access
-  Native/               P/Invoke helpers
-src/native/             C/C++ wrappers around HTS, worldline, Sinsy
-third_party/            pinned upstream sources, data and patches (no binaries)
-tools/                  build / pack / smoke
-docs/roadmap.md         what works today and what is next
+```powershell
+dotnet run --project tests\UnitTests\UnitTests.csproj -c Release
+powershell -ExecutionPolicy Bypass -File tools\smoke.ps1 -TuneLabDir "C:\Program Files\TuneLab"
 ```
 
-## Credits and external references
+## Documentation
 
-This project stands on other people's work. Thank you to:
+- [Technical overview](docs/technical.md)
+- [Implementation notes](docs/implementation.md)
+- [Japanese/Chinese phone table](docs/ja-zh-phone-table.md)
+- [Third-party notices](THIRD-PARTY-NOTICES.md)
 
-| Project | Author / maintainer | Used for | Licence |
-| --- | --- | --- | --- |
-| [WORLDLINE R1.1/R2](https://github.com/stakira/OpenUtau) (`cpp/worldline`) | **StAkira** (OpenUtau) | the vocoder that turns our acoustic parameters into audio | MIT |
-| [WORLD](https://github.com/mmorise/World) | Masanori Morise and contributors | spectral envelope / aperiodicity synthesis underneath worldline | modified BSD |
-| [HTS — hts_engine API](http://hts-engine.sourceforge.net/) | HTS Working Group, Nagoya Institute of Technology | HMM acoustic model inference (durations, F0, mel-cepstrum) | modified BSD |
-| [Sinsy](http://sinsy.sourceforge.net/) | Sinsy Working Group, Nagoya Institute of Technology | Japanese text → phonemes and full-context labels | modified BSD |
-| HTS Voice "NIT SONG070 F001" 0.90 | Nagoya Institute of Technology, released by the Sinsy Working Group | Japanese labels, durations, F0 and envelope | **CC BY 3.0** |
-| [TuneLab](https://github.com/LiuYunPlayer/TuneLab) | LiuYunPlayer and contributors | the host application and the plugin SDK | see upstream |
+## License
 
-Full licence texts and per-component details: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+The plugin is MIT-licensed; see [LICENSE](LICENSE). Third-party components (HTS, WORLD,
+worldline, Sinsy, NIT SONG070, ONNX Runtime) keep their own licences and are listed in
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
-MUTA itself is not affiliated with this project; the extension reads voice data the
-user already owns and ships none of it.
-
-## Licence
-
-See [LICENSE](LICENSE).
+MUTA is a separate product. This project is not affiliated with or endorsed by its authors.
