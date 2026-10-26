@@ -106,6 +106,11 @@ public static class MutaRenderer
         {
             taken = true;   // the previous owner died; the native side is ours again
         }
+        // Running without the process-wide mutex is exactly the two-assemblies-at-once
+        // case it exists for: HTS keeps global state and corrupts its heap instead of
+        // failing. A block that cannot get the lock must fail, never proceed unlocked.
+        if (!taken)
+            throw new TimeoutException("another MUTA render held the native HTS lock for 5 minutes");
         try
         {
             lock (RenderGate)
@@ -124,6 +129,25 @@ public static class MutaRenderer
         var notes = request.Notes;
         if (notes.Count == 0)
             return new RenderResult([], [], notes, []);
+
+        // One block is rendered as a whole spectrum matrix: frames x 1025 doubles at every
+        // stage. The audit measured about 17 MB of peak per second of audio, so a note
+        // dragged to a minute would ask for a gigabyte in one allocation chain. Fail the
+        // block before that rather than letting HTS or worldline run out of memory (both
+        // are native and an allocation failure there is an access violation, not an
+        // OutOfMemoryException we could catch).
+        const int MaxRenderFrames = 3000;                // 15 s at 5 ms
+        if (request.TotalFrames > MaxRenderFrames)
+            throw new InvalidOperationException(
+                $"block is {request.TotalFrames * FrameSeconds:F1} s ({request.TotalFrames} frames); " +
+                $"the render limit is {MaxRenderFrames * FrameSeconds:F0} s -- shorten or split the note");
+        long estimateBytes = (long)request.TotalFrames * 1025 * sizeof(double) * 12;
+        long availableBytes = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes
+                              - System.Diagnostics.Process.GetCurrentProcess().PrivateMemorySize64;
+        if (availableBytes > 0 && estimateBytes > availableBytes / 2)
+            throw new InvalidOperationException(
+                $"block needs about {estimateBytes / 1048576} MB but only " +
+                $"{availableBytes / 1048576} MB of the memory budget is free");
 
         cancellation.ThrowIfCancellationRequested();
 
@@ -800,6 +824,12 @@ public static class MutaRenderer
                 || !long.TryParse(fields[0], out long start)
                 || !long.TryParse(fields[1], out long end))
                 throw new InvalidOperationException($"label {i} does not start with two timestamps: [{labels[i]}]");
+            // HTS copies each token into a fixed 1024-byte stack buffer without a length
+            // check; a pinned phoneme longer than this would smash its stack.
+            for (int field = 2; field < fields.Length; field++)
+                if (fields[field].Length > 900)
+                    throw new InvalidOperationException(
+                        $"label {i} has a {fields[field].Length}-character token; the limit is 900");
             if (end < start)
                 throw new InvalidOperationException(
                     $"label {i} ends before it starts ({start}..{end}): [{labels[i]}]");

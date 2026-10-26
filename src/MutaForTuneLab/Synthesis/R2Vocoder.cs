@@ -129,6 +129,14 @@ public sealed class R2Vocoder : IR2Vocoder
         int hop = int.Parse(hopText);
         int fft = config.TryGetValue("fft_size", out var fftText) ? int.Parse(fftText) : 2048;
         int melBins = config.TryGetValue("num_mel_bins", out var binsText) ? int.Parse(binsText) : 128;
+        // These four sizes become tensor dimensions. A bad yaml must fail the R2 backend,
+        // not allocate a multi-gigabyte tensor or divide by a zero hop.
+        if (sampleRate is < 8000 or > 96000
+            || hop is < 32 or > 4096
+            || fft is < 256 or > 8192
+            || melBins is < 16 or > 512
+            || (fft & (fft - 1)) != 0)
+            return null;
         string name = config.TryGetValue("name", out var nameText) ? nameText : Path.GetFileName(vocoderDirectory);
 
         // A GPU that cannot run this graph must not cost the whole render: build on

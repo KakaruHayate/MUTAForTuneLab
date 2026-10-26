@@ -85,6 +85,11 @@ public static class WorldlineVocoder
             throw new ArgumentException("sp, ap and f0 must have the same frame count");
 
         int bins = sp[0].Length;
+        // The native side indexes sp/ap by fft_size/2+1. If a caller hands us a different
+        // bin count, that is an out-of-bounds read, not a length mismatch we can recover.
+        if (bins != settings.FftSize / 2 + 1)
+            throw new ArgumentException(
+                $"spectra have {bins} bins but FftSize {settings.FftSize} needs {settings.FftSize / 2 + 1}");
         var gender = expression.Gender ?? VocoderExpression.Fill(frames, 0.5);
         var tension = expression.Tension ?? VocoderExpression.Fill(frames, 0.5);
         var breathiness = expression.Breathiness ?? VocoderExpression.Fill(frames, 0.5);
@@ -96,7 +101,16 @@ public static class WorldlineVocoder
         var f0Copy = (double[])f0.Clone();
         var spectral = Flatten(sp);
         var aperiodicity = Flatten(ap);
-        int samples = SampleCount(frames, settings.FramePeriodMs, settings.SampleRate);
+        // The native function re-derives the frame period from the integer hop it is given
+        // (hop * 1000 / fs), so sizing the managed buffer from the unrounded milliseconds
+        // can make the native write past the end. Use the same hop-derived period.
+        int hop = Math.Max(1, (int)Math.Round(settings.SampleRate * settings.FramePeriodMs / 1000.0));
+        double derivedPeriodMs = hop * 1000.0 / settings.SampleRate;
+        // WorldSynthesis receives the unrounded period; the continuous backend receives hop.
+        double periodMs = settings.Backend == VocoderBackend.World
+            ? settings.FramePeriodMs
+            : derivedPeriodMs;
+        int samples = SampleCount(frames, periodMs, settings.SampleRate);
         var output = new double[samples];
 
         if (settings.Backend == VocoderBackend.World)
@@ -121,7 +135,6 @@ public static class WorldlineVocoder
         if (stretch.Length != frames)
             throw new ArgumentException("stretch must have one value per frame");
 
-        int hop = (int)Math.Round(settings.SampleRate * settings.FramePeriodMs / 1000.0);
         int writtenContinuous = WorldSynthesisContinuousNoise(
             f0Copy, frames, spectral, harmonic, aperiodicity, stretch,
             settings.FftSize, hop, settings.SampleRate, settings.Seed, output,

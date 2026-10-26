@@ -29,7 +29,7 @@ namespace MutaForTuneLab;
 public sealed class MutaSynthesisSession : IVoiceSynthesisSession
 {
     /// <summary>Longest block, in seconds. Short enough that one block renders quickly.</summary>
-    const double MaxBlockSeconds = 30.0;
+    const double MaxBlockSeconds = 12.0;
     /// <summary>A gap wider than this starts a new block.</summary>
     const double GapSeconds = 0.4;
     const int MaxNotesPerBlock = 240;
@@ -210,7 +210,14 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
             return null;
 
         static string[] Symbols(IReadOnlyList<VoiceSynthesisPhonemeSnapshot> phones)
-            => phones.Select(p => p.Symbol).ToArray();
+        {
+            // The label builder writes these into HTS's fixed 1024-byte stack token buffer.
+            foreach (var phone in phones)
+                if (phone.Symbol.Length > 128)
+                    throw new InvalidOperationException(
+                        $"pinned phoneme [{phone.Symbol}] is longer than 128 characters");
+            return phones.Select(p => p.Symbol).ToArray();
+        }
         static double[] Durations(IReadOnlyList<VoiceSynthesisPhonemeSnapshot> phones)
             => phones.Select(p => p.Duration).ToArray();
         static double[] Weights(IReadOnlyList<VoiceSynthesisPhonemeSnapshot> phones)
@@ -280,6 +287,7 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
     public SynthesisRange? GetNextPendingSynthesisRange(double startTime, double endTime)
     {
         var planned = Plan();
+        Prune(planned);
         foreach (var block in planned)
         {
             if (!IsDirty(block))
@@ -297,7 +305,9 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
             return;
 
         // Same pure plan as the peek, so the same block comes out of it.
-        var block = Plan().FirstOrDefault(b =>
+        var planned = Plan();
+        Prune(planned);
+        var block = planned.FirstOrDefault(b =>
             IsDirty(b) && b.EndTime > startTime && b.StartTime < endTime);
         if (block is null)
             return;

@@ -113,7 +113,12 @@ public sealed class InfFile
             if (header[i] < 0)
                 throw new InvalidDataException($"{path}: negative header field");
 
+        // Header counts are file-controlled. Without these bounds a 25-byte file can make us
+        // commit hundreds of MB before the truncated parse throws, and that runs per block.
         int groupCount = header[5];
+        if (groupCount > data.Length / 8)
+            throw new InvalidDataException($"{path}: {groupCount} groups in {data.Length} bytes");
+
         var capacities = new List<(string Name, int Declared)>(groupCount);
         for (int i = 0; i < groupCount; i++)
             capacities.Add((cursor.Text(), cursor.I32()));
@@ -124,6 +129,11 @@ public sealed class InfFile
             byName[name] = [];
 
         int itemCount = header[1];
+        if (itemCount > data.Length / 16)
+            throw new InvalidDataException($"{path}: {itemCount} items in {data.Length} bytes");
+        if (header[2] <= 0 || header[2] > 512 || header[3] <= 0 || header[3] > 512)
+            throw new InvalidDataException(
+                $"{path}: implausible orders mgc={header[2]} bap={header[3]}");
         for (int i = 0; i < itemCount; i++)
         {
             string current = cursor.Text();
@@ -139,6 +149,8 @@ public sealed class InfFile
         }
 
         int finalCount = header[4];
+        if (finalCount > data.Length / 8)
+            throw new InvalidDataException($"{path}: {finalCount} final records in {data.Length} bytes");
         var final = new List<(int, int, int)>(finalCount);
         for (int i = 0; i < finalCount; i++)
         {
@@ -185,7 +197,7 @@ public sealed class InfFile
     /// </summary>
     public void ValidateBank(long bankSize)
     {
-        int vectorBytes = (MgcOrder + BapOrder) * 4;
+        long vectorBytes = ((long)MgcOrder + BapOrder) * 4;
         foreach (var group in Groups)
         {
             foreach (var item in group.Items)

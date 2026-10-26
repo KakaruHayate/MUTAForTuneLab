@@ -61,9 +61,13 @@ sinsy::Converter& SharedConverter(const char* dicDir)
 int CopyOut(const std::string& text, char* buffer, int bufferSize)
 {
    const int needed = static_cast<int>(text.size()) + 1;
-   if (buffer == nullptr || bufferSize < needed)
-   {
+   if (buffer == nullptr)
       return needed;
+   if (bufferSize < needed)
+   {
+      // Negative: "too small", distinct from the positive "here is the size" answer. The
+      // managed side must never read a buffer this call did not fill.
+      return -needed;
    }
    std::memcpy(buffer, text.data(), text.size());
    buffer[text.size()] = '\0';
