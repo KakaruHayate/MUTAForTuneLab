@@ -142,12 +142,12 @@ if ($sourceCount -gt 0) {
     $text = if ($schema) { $schema.schemaText } else { "" }
 
     foreach ($needle in @(
-            "Part properties (7):",
-            "bank_pitch_mode", "bank_pitch_offset", "bank_pitch_note", "phoneme_speed", "vocoder_mode",
+            "Part properties (4):",
+            "bank_pitch_offset", "phoneme_speed", "vocoder_mode",
             "Part automation tracks (editable) (7):",
             "Energy", "Timbre", "Husky", "Gender", "Tension", "Breathiness", "Voicing",
             "Note properties (3):",
-            "pronunciation", "preutterance_ms"
+            "pronunciation", "preutterance_ms", "bank_pitch_offset"
         )) {
         Assert-That ("schema declares '{0}'" -f $needle) ($text -like ("*" + $needle + "*")) $null
     }
