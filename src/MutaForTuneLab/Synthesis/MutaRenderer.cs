@@ -954,18 +954,23 @@ public static class MutaRenderer
 
         // Timbre: the warping factor each frame is read with. Built as an array so the
         // spectrum stage can bucket equal values instead of warping every frame alone.
+        double baseAlpha = double.IsFinite(request.Alpha)
+            ? Math.Clamp(request.Alpha, 0.30, 0.80)
+            : 0.55;
         var alphas = new double[frames];
         if (request.Timbre is { Length: > 0 } timbre)
         {
             for (int f = 0; f < frames; f++)
             {
                 double value = timbre[Math.Min(f, timbre.Length - 1)];
-                alphas[f] = Math.Clamp(request.Alpha - 0.05 * value, 0.30, 0.80);
+                alphas[f] = double.IsFinite(value)
+                    ? Math.Clamp(baseAlpha - 0.05 * value, 0.30, 0.80)
+                    : baseAlpha;
             }
         }
         else
         {
-            Array.Fill(alphas, request.Alpha);
+            Array.Fill(alphas, baseAlpha);
         }
         return alphas;
     }
