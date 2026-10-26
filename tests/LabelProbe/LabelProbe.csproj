@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Label regression probe: reads the fixtures the Python reference generated and
+       checks the C# port against them byte for byte. Links the builder source, so it
+       needs neither the TuneLab SDK nor a running host. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>LabelProbe</RootNamespace>
+    <AssemblyName>LabelProbe</AssemblyName>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="..\..\src\MutaForTuneLab\Synthesis\LabelBuilder.cs" Link="LabelBuilder.cs" />
+  </ItemGroup>
+
+</Project>

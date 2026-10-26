@@ -1,0 +1,45 @@
+{
+  "name": "jump",
+  "total": 420,
+  "notes": [
+    {
+      "start_frame": 0,
+      "frames": 60,
+      "midi": 0,
+      "rest": true
+    },
+    {
+      "start_frame": 60,
+      "frames": 60,
+      "midi": 60
+    },
+    {
+      "start_frame": 120,
+      "frames": 40,
+      "midi": 0,
+      "rest": true
+    },
+    {
+      "start_frame": 160,
+      "frames": 60,
+      "midi": 84
+    },
+    {
+      "start_frame": 220,
+      "frames": 60,
+      "midi": 0,
+      "rest": true
+    },
+    {
+      "start_frame": 280,
+      "frames": 60,
+      "midi": 67
+    },
+    {
+      "start_frame": 340,
+      "frames": 80,
+      "midi": 0,
+      "rest": true
+    }
+  ]
+}

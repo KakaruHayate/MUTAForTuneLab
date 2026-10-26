@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Bank assembly probe: replays the arithmetic fixtures (resampler, split, fades,
+       ratios, planning) against the C# port. Links the sources, so it needs neither
+       the TuneLab SDK nor a running host. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>MgcProbe</RootNamespace>
+    <AssemblyName>MgcProbe</AssemblyName>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="..\..\src\MutaForTuneLab\Synthesis\MgcSpectrum.cs" Link="MgcSpectrum.cs" />
+  </ItemGroup>
+
+</Project>
+

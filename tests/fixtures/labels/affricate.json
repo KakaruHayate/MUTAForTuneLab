@@ -1,0 +1,42 @@
+{
+  "name": "affricate",
+  "tempo": 120,
+  "notes": [
+    {
+      "phone": "sil",
+      "start": 0,
+      "frames": 90,
+      "pitch": 0
+    },
+    {
+      "phone": "zhi",
+      "start": 90,
+      "frames": 35,
+      "pitch": 64
+    },
+    {
+      "phone": "chi",
+      "start": 125,
+      "frames": 35,
+      "pitch": 66
+    },
+    {
+      "phone": "shi",
+      "start": 160,
+      "frames": 35,
+      "pitch": 68
+    },
+    {
+      "phone": "ri",
+      "start": 195,
+      "frames": 35,
+      "pitch": 65
+    },
+    {
+      "phone": "sil",
+      "start": 230,
+      "frames": 120,
+      "pitch": 0
+    }
+  ]
+}

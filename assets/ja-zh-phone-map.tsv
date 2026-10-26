@@ -1,0 +1,116 @@
+# 日文音素 -> MUTA bank 槽（v2，用户试听后定稿：え=ei、お=ou）
+# 格式（TAB 分隔，四列）：
+#   jp_phone    bank_onset    bank_final    note
+#   · jp_phone   = Sinsy/假名表给出的音素串（きゃ -> kya，し -> shi，ん -> N，っ -> cl）
+#   · bank_onset = 空表示裸元音（没有辅音槽）
+#   · bank_final = bank 的韵母名；选择器会按左右上下文挑最接近的录音，没录过就硬拼
+#   · note       = 备注，代码忽略
+# 改完这一版直接重跑 tools\export-gojuon.ps1，不需要改代码。
+a		a	裸元音
+i		i	裸元音
+u		u	裸元音
+e		ei	え = ei（不是 ie）
+o		ou	お = ou（不是 uo）
+ka	k	a
+ki	k	i	bank 无 k|i，硬拼
+ku	k	u
+ke	k	ei	け = k+ei
+ko	k	ou	こ = k+ou
+ga	g	a
+gi	g	i	硬拼
+gu	g	u
+ge	g	ei
+go	g	ou
+sa	s	a
+shi	x	i	し = x+i
+su	s	u
+se	s	ei
+so	s	ou
+za	z	a
+ji	j	i	じ = j+i
+zu	z	u
+ze	z	ei
+zo	z	ou
+ta	t	a
+chi	q	i	ち = q+i
+tsu	c	u	つ = c+u
+te	t	ei
+to	t	ou
+da	d	a
+de	d	ei
+do	d	ou
+na	n	a
+ni	n	i
+nu	n	u
+ne	n	ei
+no	n	ou
+ha	h	a
+hi	x	i	ひ = x+i
+fu	f	u	ふ = f+u
+he	h	ei
+ho	h	ou
+ba	b	a
+bi	b	i
+bu	b	u
+be	b	ei
+bo	b	ou
+pa	p	a
+pi	p	i
+pu	p	u
+pe	p	ei
+po	p	ou
+ma	m	a
+mi	m	i
+mu	m	u
+me	m	ei
+mo	m	ou	も = m+ou（不是 uo）
+ya	y	a
+yu	y	u
+yo	y	ou
+ra	l	a	日文 r = 中文 l
+ri	l	i
+ru	l	u
+re	l	ei
+ro	l	ou
+wa	w	a
+wo		ou	を 读 o
+N		en	ん = 恩（左上下文按 ge）
+kya	k	ia	拗音：保留 k，只借介音
+kyu	k	iu
+kyo	k	iao
+gya	g	ia
+gyu	g	iu
+gyo	g	iao
+sha	x	ia
+shu	x	iu
+sho	x	iao
+cha	q	ia
+chu	q	iu
+cho	q	iao
+ja	j	ia
+ju	j	iu
+jo	j	iao
+nya	n	ia
+nyu	n	iu
+nyo	n	iao
+hya	x	ia
+hyu	x	iu
+hyo	x	iao
+bya	b	ia
+byu	b	iu
+byo	b	iao
+pya	p	ia
+pyu	p	iu
+pyo	p	iao
+mya	m	ia
+myu	m	iu
+myo	m	iao
+rya	l	ia
+ryu	l	iu
+ryo	l	iao
+tya	t	ia
+tyu	t	iu
+tyo	t	iao
+dya	d	ia
+dyu	d	iu
+dyo	d	iao

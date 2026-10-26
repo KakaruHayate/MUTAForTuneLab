@@ -1,0 +1,8 @@
+0 9500000 xx^xx-sil+ga=a/D:xx!xx/E:xx&100[xx@xx]xx+xx/F:57#25/G:1/H:xx/I:xx/J:1
+9500000 10000000 xx^sil-ga+a=sil/D:xx!100/E:57&25[1@1]xx+xx/F:xx#0/G:1/H:xx/I:1/J:1
+10000000 12500000 sil^ga-a+sil=sp/D:xx!100/E:57&25[1@1]xx+xx/F:xx#0/G:1/H:xx/I:1/J:1
+12500000 12550000 ga^a-sil+sp=go/D:57!25/E:xx&0[xx@xx]xx+xx/F:xx#100/G:1/H:xx/I:xx/J:1
+12550000 22050000 a^sil-sp+go=o/D:xx!0/E:xx&100[xx@xx]xx+xx/F:55#25/G:1/H:1/I:xx/J:xx
+22050000 22550000 sil^sp-go+o=sil/D:xx!100/E:55&25[1@1]xx+xx/F:xx#100/G:1/H:1/I:1/J:xx
+22550000 25050000 sp^go-o+sil=xx/D:xx!100/E:55&25[1@1]xx+xx/F:xx#100/G:1/H:1/I:1/J:xx
+25050000 35050000 go^o-sil+xx=xx/D:55!25/E:xx&100[xx@xx]xx+xx/F:xx#xx/G:1/H:1/I:xx/J:xx

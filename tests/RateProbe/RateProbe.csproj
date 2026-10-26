@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>RateProbe</RootNamespace>
+    <AssemblyName>RateProbe</AssemblyName>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="..\..\src\MutaForTuneLab\Synthesis\MgcSpectrum.cs" Link="MgcSpectrum.cs" />
+    <Compile Include="..\..\src\MutaForTuneLab\Synthesis\BapExpand.cs" Link="BapExpand.cs" />
+    <Compile Include="..\..\src\MutaForTuneLab\Synthesis\RateConversion.cs" Link="RateConversion.cs" />
+  </ItemGroup>
+</Project>

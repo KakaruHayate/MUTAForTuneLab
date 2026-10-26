@@ -1,0 +1,36 @@
+{
+  "name": "jump",
+  "tempo": 120,
+  "notes": [
+    {
+      "phone": "sil",
+      "start": 0,
+      "frames": 100,
+      "pitch": 0
+    },
+    {
+      "phone": "ma",
+      "start": 100,
+      "frames": 60,
+      "pitch": 60
+    },
+    {
+      "phone": "sil",
+      "start": 160,
+      "frames": 40,
+      "pitch": 0
+    },
+    {
+      "phone": "mi",
+      "start": 200,
+      "frames": 60,
+      "pitch": 84
+    },
+    {
+      "phone": "sil",
+      "start": 260,
+      "frames": 100,
+      "pitch": 0
+    }
+  ]
+}

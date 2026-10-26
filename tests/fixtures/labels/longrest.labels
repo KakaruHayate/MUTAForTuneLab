@@ -1,0 +1,6 @@
+0 5000000 xx^xx-sil+sp=l/D:xx!xx/E:xx&50[xx@xx]xx+xx/F:xx#100/G:1/H:xx/I:xx/J:1
+5000000 14250000 xx^sil-sp+l=e/D:xx!50/E:xx&100[xx@xx]xx+xx/F:55#25/G:1/H:xx/I:xx/J:xx
+14250000 15000000 sil^sp-l+e=sil/D:xx!100/E:55&25[1@1]xx+xx/F:xx#100/G:1/H:xx/I:1/J:xx
+15000000 17500000 sp^l-e+sil=sp/D:xx!100/E:55&25[1@1]xx+xx/F:xx#100/G:1/H:xx/I:1/J:xx
+17500000 27500000 l^e-sil+sp=xx/D:55!25/E:xx&100[xx@xx]xx+xx/F:xx#100/G:1/H:xx/I:xx/J:xx
+27500000 37500000 e^sil-sp+xx=xx/D:xx!100/E:xx&100[xx@xx]xx+xx/F:xx#xx/G:1/H:1/I:xx/J:xx

@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AssemblyName>MutaForTuneLab.Tests</AssemblyName>
+    <RootNamespace>MutaForTuneLab.Tests</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="..\..\src\MutaForTuneLab\Assets\KanaTable.cs" Link="Assets\KanaTable.cs" />
+    <Compile Include="..\..\src\MutaForTuneLab\Assets\PinyinDictionary.cs" Link="Assets\PinyinDictionary.cs" />
+    <Compile Include="..\..\src\MutaForTuneLab\Native\Gbk.cs" Link="Native\Gbk.cs" />
+    <Compile Include="..\..\src\MutaForTuneLab\Native\NativeLibraries.cs" Link="Native\NativeLibraries.cs" />
+    <Compile Include="..\..\src\MutaForTuneLab\Synthesis\MutaDiagnostics.cs" Link="Synthesis\MutaDiagnostics.cs" />
+    <Compile Include="..\..\src\MutaForTuneLab\Synthesis\SungSyllable.cs" Link="Synthesis\SungSyllable.cs" />
+    <Compile Include="..\..\src\MutaForTuneLab\Synthesis\ChineseFrontend.cs" Link="Synthesis\ChineseFrontend.cs" />
+    <Compile Include="..\..\src\MutaForTuneLab\Synthesis\JapaneseFrontend.cs" Link="Synthesis\JapaneseFrontend.cs" />
+    <Compile Include="..\..\src\MutaForTuneLab\Synthesis\JapaneseMapping.cs" Link="Synthesis\JapaneseMapping.cs" />
+    <Compile Include="..\..\src\MutaForTuneLab\Synthesis\PhoneTimeline.cs" Link="Synthesis\PhoneTimeline.cs" />
+    <Compile Include="..\..\src\MutaForTuneLab\Synthesis\LabelBuilder.cs" Link="Synthesis\LabelBuilder.cs" />
+    <Compile Include="..\..\src\MutaForTuneLab\Synthesis\F0Mechanism.cs" Link="Synthesis\F0Mechanism.cs" />
+    <Compile Include="..\..\src\MutaForTuneLab\Assets\InfFile.cs" Link="Assets\InfFile.cs" />
+    <Compile Include="..\..\src\MutaForTuneLab\Synthesis\BankContext.cs" Link="Synthesis\BankContext.cs" />
+    <Compile Include="..\..\src\MutaForTuneLab\Synthesis\BankAssembler.cs" Link="Synthesis\BankAssembler.cs" />
+    <Compile Include="..\..\src\MutaForTuneLab\Synthesis\BankRenderer.cs" Link="Synthesis\BankRenderer.cs" />
+    <Compile Include="..\..\src\MutaForTuneLab\Synthesis\BreathRenderer.cs" Link="Synthesis\BreathRenderer.cs" />
+    <Compile Include="..\..\src\MutaForTuneLab\Synthesis\PinnedPhones.cs" Link="Synthesis\PinnedPhones.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The tests read the same data the plugin ships, not a copy of it. -->
+    <Content Include="..\..\assets\ja-zh-phone-map.tsv" Link="ja-zh-phone-map.tsv" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\third_party\sinsy\dic\japanese.utf_8.table" Link="sinsy\dic\japanese.utf_8.table" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

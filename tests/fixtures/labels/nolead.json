@@ -1,0 +1,18 @@
+{
+  "name": "nolead",
+  "tempo": 120,
+  "notes": [
+    {
+      "phone": "ni",
+      "start": 0,
+      "frames": 60,
+      "pitch": 72
+    },
+    {
+      "phone": "sil",
+      "start": 60,
+      "frames": 100,
+      "pitch": 0
+    }
+  ]
+}

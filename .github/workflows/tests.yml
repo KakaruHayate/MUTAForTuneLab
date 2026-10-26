@@ -1,0 +1,20 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  unit:
+    # The plugin itself cannot be built here: it compiles against TuneLab.SDK.dll, which is
+    # provided by the host and not shipped. The unit tests compile the front end, the label
+    # splitter, the phone timeline and the F0 mechanism on their own, with no SDK reference.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: unit tests
+        run: dotnet run --project tests/UnitTests/UnitTests.csproj -c Release

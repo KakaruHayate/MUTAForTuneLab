@@ -1,0 +1,24 @@
+{
+  "name": "single",
+  "tempo": 120,
+  "notes": [
+    {
+      "phone": "sil",
+      "start": 0,
+      "frames": 150,
+      "pitch": 0
+    },
+    {
+      "phone": "ni",
+      "start": 150,
+      "frames": 40,
+      "pitch": 72
+    },
+    {
+      "phone": "sil",
+      "start": 190,
+      "frames": 100,
+      "pitch": 0
+    }
+  ]
+}

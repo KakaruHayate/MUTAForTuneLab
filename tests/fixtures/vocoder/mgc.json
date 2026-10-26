@@ -1,0 +1,15 @@
+{
+  "bins": 1025,
+  "frames": 6,
+  "order": 50,
+  "source": "zh_yanxi_params.npz",
+  "alpha_scalar": 0.55,
+  "alpha_per_frame": [
+    0.55,
+    0.56,
+    0.5700000000000001,
+    0.58,
+    0.59,
+    0.6
+  ]
+}
