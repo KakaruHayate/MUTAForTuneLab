@@ -39,7 +39,7 @@ Editable curves (per part, over time): Energy, Timbre, Husky (these act on the a
 model output), and Gender, Tension, Breathiness, Voicing (passed straight to the vocoder).
 Pitch and vibrato use TuneLab's own pitch and deviation channels.
 
-Part settings include the sample-region offset in semitones: it chooses which recorded
+Note settings include the sample-region offset in semitones: it chooses which recorded
 register a note is built from, plus the vocoder mode, phoneme speed and output gain.
 
 ## Status

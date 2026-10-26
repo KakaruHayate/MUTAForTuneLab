@@ -154,7 +154,7 @@ score = 左上下文匹配 + 右上下文匹配 + 音类 + 音高距离 + 时长
 | Husky | 非周期性（`bap[f][b] += dB`） |
 | Gender / Tension / Breathiness / Voicing | 逐帧数组直传声码器 |
 | phoneme_speed | HTS 的 speed |
-| bank_pitch_offset | **只决定选哪段录音**，不参与 F0 |
+| bank_pitch_offset（音符级） | **只决定选哪段录音**，不参与 F0 |
 | output_gain_db | 软限幅前的线性增益 |
 
 不画曲线时参数为空，渲染结果与不接线逐样本一致。

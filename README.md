@@ -30,7 +30,7 @@ have.
 - **Portamento straddles the beat.** A pitch change glides from about 60-90 ms before the
   boundary to about 30 ms after it, in an S curve, instead of snapping up on the beat.
 - **Seven automation lanes** (Energy, Timbre, Husky, Gender, Tension, Breathiness, Voicing),
-  plus phoneme speed, output gain and a bank register offset in semitones.
+  plus phoneme speed, output gain and a per-note bank register offset in semitones.
 - **Per-part language**, independent of timbre: one bank sings Chinese or Japanese; switching
   language changes only the front end and the labels.
 

@@ -174,7 +174,6 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
             });
             settings.DoubleField(Declarations.KeyPhonemeSpeed, 1.0).Modified.Subscribe(() => mGlobalVersion++);
             settings.DoubleField(Declarations.KeyOutputGain, 0.0).Modified.Subscribe(() => mGlobalVersion++);
-            settings.DoubleField(Declarations.KeyBankPitchOffset, 0.0).Modified.Subscribe(() => mGlobalVersion++);
         }
     }
 
@@ -228,6 +227,12 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
     /// The user's pinned phonemes for this note, or null when it is not pinned. Both lists
     /// empty means "let the engine decide", which is the only case the G2P runs in.
     /// </summary>
+    static double NoteProperty(IReadOnlyNotifiablePropertyObject properties, string key, double fallback)
+    {
+        var value = properties.GetValue(key, PropertyValue.Create(fallback));
+        return value.ToDouble(out double result) ? result : fallback;
+    }
+
     static PinnedPhones? Pinned(VoiceSynthesisNoteSnapshot note)
     {
         IReadOnlyList<VoiceSynthesisPhonemeSnapshot> leading = note.LeadingPhonemes;
@@ -686,7 +691,9 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
                    .Append(note.StartTime.Value.ToString("F6", CultureInfo.InvariantCulture)).Append('|')
                    .Append(note.EndTime.Value.ToString("F6", CultureInfo.InvariantCulture)).Append('|')
                    .Append(note.Pitch.Value).Append('|')
-                   .Append(note.Lyric.Value);
+                   .Append(note.Lyric.Value).Append('|')
+                   .Append(NoteProperty(note.Properties, Declarations.KeyBankPitchOffset, 0.0)
+                       .ToString("F3", CultureInfo.InvariantCulture));
             // Dragging a phoneme boundary locks the phonemes and changes only these lists.
             // Without them in the signature the block stays "not dirty" and the host never
             // asks for a re-render at all.
@@ -799,13 +806,14 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
             }
             bool isBreath = breath[i];
             bool isContinuation = continuation[i];
+            double bankPitchOffset = NoteProperty(note.Properties, Declarations.KeyBankPitchOffset, 0.0);
             notes.Add(new RenderNote(startFrame, frames, note.Pitch.Value,
                 isBreath ? "sp" : syllable.LabelText, isBreath, lyrics[i],
                 isBreath ? null : syllable.ModelInitial,
                 isBreath ? "sil" : syllable.ModelFinal,
                 bankInitial, bankFinal, syllable.BankLeft,
                 isBreath || isContinuation ? 0 : syllable.ModelPhones.Count, pinned,
-                isContinuation, isBreath));
+                isContinuation, isBreath, bankPitchOffset));
         }
 
         int totalFrames = Math.Max(1, (int)Math.Round((block.EndTime - block.StartTime) / frameSeconds));
@@ -835,7 +843,7 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
             // The UI now exposes only the register offset; selecting a fixed region or
             // following the note implicitly is gone.
             BankPitchMode = "offset",
-            BankPitchOffset = properties.GetDouble(Declarations.KeyBankPitchOffset, 0.0),
+            BankPitchOffset = 0.0,
             BankPitchNote = 0,
             Energy = Curve(snapshot, Declarations.KeyEnergy, positions),
             Timbre = Curve(snapshot, Declarations.KeyTimbre, positions),

@@ -28,7 +28,10 @@ public readonly record struct RenderNote(
     // mechanism glides into it.
     bool Continuation = false,
     // A breath note: silence in the acoustic model, with a breath sample mixed in afterwards.
-    bool Breath = false);
+    bool Breath = false,
+    // Per-note bank register offset in semitones: which recorded pitch the frames are taken
+    // from. It never changes the note's own F0.
+    double BankPitchOffset = 0.0);
 
 /// <summary>What the assembler needs from a bank; lets tests feed it directly.</summary>
 public interface IBankSource
@@ -345,7 +348,7 @@ public static class BankRenderer
         if (mode == "fixed" && fixedNote > 0)
             return 440.0 * Math.Pow(2.0, (fixedNote - 69) / 12.0);
 
-        double midi = note.Midi + (mode == "offset" ? offset : 0.0);
+        double midi = note.Midi + (mode == "offset" ? offset + note.BankPitchOffset : 0.0);
         return 440.0 * Math.Pow(2.0, (midi - 69) / 12.0);
     }
 

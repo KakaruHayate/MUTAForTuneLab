@@ -87,10 +87,7 @@ public static class Declarations
                 }).WithDefault(PropertyValue.Create("zh"))
             },
 
-            {
-                (KeyBankPitchOffset, L.Tr("Bank pitch offset (semitones)", "音区偏移（半音）")),
-                SliderConfig.Integer(0, -24, 24)
-            },
+
 
             {
                 (KeyPhonemeSpeed, L.Tr("Phoneme speed", "语速")),
@@ -128,6 +125,7 @@ public static class Declarations
         {
             { (KeyPronunciation, L.Tr("Pronunciation override", "发音覆盖")), TextBoxConfig.Create() },
             { (KeyPreutteranceMs, L.Tr("Preutterance (ms)", "辅音提前量（ms）")), SliderConfig.Integer(0, -200, 200) },
+            { (KeyBankPitchOffset, L.Tr("Bank pitch offset (semitones)", "音区偏移（半音）")), SliderConfig.Integer(0, -24, 24) },
         };
         return ObjectConfig.Create(properties);
     }
