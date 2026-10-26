@@ -219,6 +219,15 @@ public static class BankRenderer
             string rightContext = nextConsonant ?? "sil";
 
             int cursor = note.StartFrame;
+            if (note.Pinned is { } pinnedOffset)
+            {
+                // BodyOffset is the leading/body junction measured from the note head. A
+                // negative value is a vowel dragged before the beat; the bank must follow it
+                // instead of always starting the vowel on the note's start frame.
+                const double frameSeconds = 0.005;
+                cursor += (int)Math.Round(pinnedOffset.BodyOffset / frameSeconds);
+                cursor = Math.Clamp(cursor, 0, Math.Max(0, totalFrames - 1));
+            }
             int previousDuration = 0;
 
             if (initial is not null)

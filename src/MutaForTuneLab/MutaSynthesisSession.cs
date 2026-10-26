@@ -155,6 +155,11 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
             // version here made an edit in bar 1 re-render the whole song.
             pair.Value.RangeModified.Subscribe((start, end) => BumpCurve(start, end));
         }
+        // Pitch and vibrato are separate snapshot channels, not entries in Automations.
+        // Without these two subscriptions the brush/vibrato tools change audible data but
+        // no block ever becomes dirty.
+        context.Pitch?.RangeModified.Subscribe((start, end) => BumpCurve(start, end));
+        context.PitchDeviation?.RangeModified.Subscribe((start, end) => BumpCurve(start, end));
 
         // Part properties change the render as well, and the host reports those per field.
         var settings = context.PartProperties;
