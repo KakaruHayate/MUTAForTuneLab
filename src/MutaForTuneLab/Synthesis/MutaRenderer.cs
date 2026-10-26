@@ -249,7 +249,7 @@ public static class MutaRenderer
 
         // A malformed label makes HTS read past whatever it built; check the timestamps here
         // so a bad slot fails the block with a message instead of taking the process down.
-        ValidateLabels(labels);
+        ValidateLabels(labels, request.Japanese);
         if (enginePath.Length == 0)
             throw new InvalidOperationException("no acoustic model path for this voice");
 
@@ -853,7 +853,7 @@ public static class MutaRenderer
     /// before its start (or a line that does not parse) is not something the engine reports
     /// -- it indexes out of its own frame arrays. Refuse the block instead.
     /// </summary>
-    static void ValidateLabels(IReadOnlyList<string> labels)
+    static void ValidateLabels(IReadOnlyList<string> labels, bool japanese)
     {
         if (labels.Count == 0)
             throw new InvalidOperationException("the label builder produced no lines");
@@ -875,6 +875,10 @@ public static class MutaRenderer
                 if (fields[field].Length > 900)
                     throw new InvalidOperationException(
                         $"label {i} has a {fields[field].Length}-character token; the limit is 900");
+            // Sinsy writes -1 for a derived/continued phoneme; HTS understands that
+            // sentinel, while our Chinese labels always carry real millisecond times.
+            if (japanese && (start == -1 || end == -1))
+                continue;
             if (end < start)
                 throw new InvalidOperationException(
                     $"label {i} ends before it starts ({start}..{end}): [{labels[i]}]");
