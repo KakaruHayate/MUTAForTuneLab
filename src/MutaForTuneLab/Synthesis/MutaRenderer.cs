@@ -73,6 +73,8 @@ public static class MutaRenderer
     /// <summary>Everything in this chain works on the model's grid.</summary>
     public const int SampleRate = 48000;
     public const double FrameSeconds = 0.005;
+    /// <summary>One render block is capped at 60 s; beyond that the block fails with a reason.</summary>
+    public const int MaxRenderFrames = 12000;           // 60 s in one piece
     public const int Bins = 1025;
     /// <summary>The log gain the rest of the chain was tuned against.</summary>
     public const double ReferenceLogGain = -4.5;
@@ -85,6 +87,48 @@ public static class MutaRenderer
     /// Blocks render in about half their own duration, so serialising them costs nothing.
     /// </summary>
     static readonly object RenderGate = new();
+
+    // The voice file and its indexed bank do not change between blocks. Re-reading 6.8 MB of
+    // .voice and 1.4 MB of .inf per block was most of the LOH churn the audit measured.
+    static readonly object CacheGate = new();
+    static readonly Dictionary<string, (long Length, DateTime Stamp, HtsVoice Voice)> VoiceCache = new();
+    static readonly Dictionary<string, (long Inf, long Bank, DateTime InfStamp, DateTime BankStamp, BankAssets Assets)> BankCache = new();
+
+    static HtsVoice VoiceFor(string path)
+    {
+        var info = new FileInfo(path);
+        string key = info.FullName;
+        lock (CacheGate)
+        {
+            if (VoiceCache.TryGetValue(key, out var cached)
+                && cached.Length == info.Length && cached.Stamp == info.LastWriteTimeUtc)
+                return cached.Voice;
+            if (VoiceCache.Count > 4)
+                VoiceCache.Clear();
+            var voice = HtsVoice.Load(path);
+            VoiceCache[key] = (info.Length, info.LastWriteTimeUtc, voice);
+            return voice;
+        }
+    }
+
+    static BankAssets AssetsFor(MutaVoice voice)
+    {
+        var inf = new FileInfo(voice.InfFile);
+        var bank = new FileInfo(voice.BankFile);
+        string key = inf.FullName + "|" + bank.FullName;
+        lock (CacheGate)
+        {
+            if (BankCache.TryGetValue(key, out var cached)
+                && cached.Inf == inf.Length && cached.Bank == bank.Length
+                && cached.InfStamp == inf.LastWriteTimeUtc && cached.BankStamp == bank.LastWriteTimeUtc)
+                return cached.Assets;
+            if (BankCache.Count > 4)
+                BankCache.Clear();
+            var assets = BankAssets.Load(voice);
+            BankCache[key] = (inf.Length, bank.Length, inf.LastWriteTimeUtc, bank.LastWriteTimeUtc, assets);
+            return assets;
+        }
+    }
     /// <summary>
     /// A process-wide named mutex, in addition to the object lock. The object lock only
     /// serialises one loaded copy of this assembly; if the host ever holds two (an old
@@ -114,7 +158,9 @@ public static class MutaRenderer
         try
         {
             lock (RenderGate)
+            {
                 return RenderCore(request, cancellation);
+            }
         }
         finally
         {
@@ -136,7 +182,6 @@ public static class MutaRenderer
         // block before that rather than letting HTS or worldline run out of memory (both
         // are native and an allocation failure there is an access violation, not an
         // OutOfMemoryException we could catch).
-        const int MaxRenderFrames = 3000;                // 15 s at 5 ms
         if (request.TotalFrames > MaxRenderFrames)
             throw new InvalidOperationException(
                 $"block is {request.TotalFrames * FrameSeconds:F1} s ({request.TotalFrames} frames); " +
@@ -199,7 +244,7 @@ public static class MutaRenderer
         else
         {
             labels = LabelBuilder.Build(BuildScore(notes, request.TotalFrames));
-            enginePath = HtsVoice.Load(voice.VoiceFile).EnginePath;
+            enginePath = VoiceFor(voice.VoiceFile).EnginePath;
         }
 
         // A malformed label makes HTS read past whatever it built; check the timestamps here
@@ -343,7 +388,7 @@ public static class MutaRenderer
         {
             try
             {
-                assets = BankAssets.Load(voice);
+                assets = AssetsFor(voice);
                 bank = BankRenderer.Assemble(assets, notes, request.TotalFrames,
                     request.BankPitchMode, request.BankPitchOffset, request.BankPitchNote, AssemblyFrames(geometry));
             }

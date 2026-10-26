@@ -510,7 +510,9 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
         TuneLabContext.Global.GetLogger().Debug(
             $"[MUTA] session #{mSessionId} disposing ({mRendering.Count} render(s) in flight)");
         mDisposeToken.Cancel();
-        for (int waited = 0; waited < 10000 && !mRendering.IsEmpty; waited += 25)
+        // A 60 s block can take tens of seconds to cancel and unwind; 10 s routinely expired
+        // first, which is exactly the use-after-unload case this wait exists to prevent.
+        for (int waited = 0; waited < 60000 && !mRendering.IsEmpty; waited += 25)
             Thread.Sleep(25);
         if (!mRendering.IsEmpty)
             TuneLabContext.Global.GetLogger().Warning(
