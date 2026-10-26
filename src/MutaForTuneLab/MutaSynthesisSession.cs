@@ -683,7 +683,27 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
                    .Append(note.StartTime.Value.ToString("F6", CultureInfo.InvariantCulture)).Append('|')
                    .Append(note.EndTime.Value.ToString("F6", CultureInfo.InvariantCulture)).Append('|')
                    .Append(note.Pitch.Value).Append('|')
-                   .Append(note.Lyric.Value).Append(';');
+                   .Append(note.Lyric.Value);
+            // Dragging a phoneme boundary locks the phonemes and changes only these lists.
+            // Without them in the signature the block stays "not dirty" and the host never
+            // asks for a re-render at all.
+            static void AppendPhonemes(System.Text.StringBuilder target,
+                IReadOnlyList<SynthesizedPhoneme>? phonemes)
+            {
+                if (phonemes is null)
+                {
+                    target.Append('~');
+                    return;
+                }
+                foreach (var phoneme in phonemes)
+                    target.Append('/').Append(phoneme.Symbol).Append(':')
+                          .Append(phoneme.Duration.ToString("F6", CultureInfo.InvariantCulture)).Append(':')
+                          .Append(phoneme.StretchWeight.ToString("F6", CultureInfo.InvariantCulture));
+            }
+            AppendPhonemes(builder, note.LeadingPhonemes.Value);
+            AppendPhonemes(builder, note.BodyPhonemes.Value);
+            builder.Append('@').Append(note.BodyOffset.Value.ToString("F6", CultureInfo.InvariantCulture))
+                   .Append(';');
         }
         return builder.ToString();
     }
@@ -704,6 +724,9 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
             return null;
 
         double frameSeconds = MutaRenderer.FrameSeconds;
+        if (snapshot.Notes.Count != block.Notes.Count)
+            TuneLabContext.Global.GetLogger().Warning(
+                $"[MUTA] snapshot has {snapshot.Notes.Count} notes but block has {block.Notes.Count}");
         var notes = new List<RenderNote>(block.Notes.Count);
         for (int i = 0; i < block.Notes.Count; i++)
         {
@@ -715,6 +738,16 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
             int frames = Math.Max(3, (int)Math.Round((note.EndTime.Value - note.StartTime.Value) / frameSeconds));
             var syllable = syllables[i];
             var pinned = Pinned(snapshot.Notes[i]);
+            if (pinned is not null)
+            {
+                static string D(double[] values) => string.Join(",",
+                    values.Select(v => v.ToString("F3", CultureInfo.InvariantCulture)));
+                TuneLabContext.Global.GetLogger().Debug(
+                    $"[MUTA] pin lead=[{string.Join(",", pinned.Leading)}] ld=[{D(pinned.LeadingDurations)}] " +
+                    $"lw=[{D(pinned.LeadingWeights)}] body=[{string.Join(",", pinned.Body)}] " +
+                    $"bd=[{D(pinned.BodyDurations)}] bw=[{D(pinned.BodyWeights)}] " +
+                    $"off={pinned.BodyOffset:F3} noteFrames={frames}");
+            }
             string? bankInitial = syllable.BankInitial;
             string bankFinal = syllable.BankFinal;
             if (pinned is not null)

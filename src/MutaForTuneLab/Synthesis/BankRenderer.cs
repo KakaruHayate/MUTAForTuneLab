@@ -187,9 +187,11 @@ public static class BankRenderer
             if (note.Pinned is { } pinned)
             {
                 if (initial is not null && pinned.LeadingDurations.Length > 0)
-                    consonantFrames = Math.Max(1, FramesOf(pinned.LeadingDurations));
+                    consonantFrames = Math.Max(1,
+                        FramesOf(pinned.LeadingDurations, pinned.LeadingWeights));
                 if (pinned.BodyDurations.Length > 0)
-                    vowelFrames = Math.Max(10, FramesOf(pinned.BodyDurations) + heldFrames);
+                    vowelFrames = Math.Max(10,
+                        FramesOf(pinned.BodyDurations, pinned.BodyWeights) + heldFrames);
             }
 
             // What the vowel runs into is still the next *content* note's onset: a run of
@@ -339,11 +341,18 @@ public static class BankRenderer
     }
 
     /// <summary>One phone's duration from the model, or 0 when the list ran out.</summary>
-    static int FramesOf(IReadOnlyList<double> seconds)
+    static int FramesOf(IReadOnlyList<double> seconds, IReadOnlyList<double> weights)
     {
+        // Duration is the host's absolute length; StretchWeight is its relative stretch.
+        // Use both so either way of dragging a phoneme changes the rendered slot.
         double total = 0.0;
-        foreach (double value in seconds)
-            total += value;
+        for (int i = 0; i < seconds.Count; i++)
+        {
+            double weight = i < weights.Count && double.IsFinite(weights[i]) && weights[i] > 0.0
+                ? Math.Clamp(weights[i], 0.05, 20.0)
+                : 1.0;
+            total += seconds[i] * weight;
+        }
         const double frameSeconds = 0.005;
         return Math.Max(1, (int)Math.Round(total / frameSeconds));
     }
