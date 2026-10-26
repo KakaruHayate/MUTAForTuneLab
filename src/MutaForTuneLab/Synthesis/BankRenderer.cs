@@ -181,6 +181,17 @@ public static class BankRenderer
                 heldFrames += notes[ahead].Frames;
             int vowelFrames = Math.Max(10, note.Frames + heldFrames);
 
+            // Pinned phoneme durations are the user's explicit choice. The bank path can
+            // honour them exactly (the model path would need HTS phoneme alignment), so use
+            // the host's seconds instead of the model/table guesses when they are present.
+            if (note.Pinned is { } pinned)
+            {
+                if (initial is not null && pinned.LeadingDurations.Length > 0)
+                    consonantFrames = Math.Max(1, FramesOf(pinned.LeadingDurations));
+                if (pinned.BodyDurations.Length > 0)
+                    vowelFrames = Math.Max(10, FramesOf(pinned.BodyDurations) + heldFrames);
+            }
+
             // What the vowel runs into is still the next *content* note's onset: a run of
             // continuation marks sits between the two and its own onset never sounds.
             RenderNote? next = null;
@@ -328,6 +339,15 @@ public static class BankRenderer
     }
 
     /// <summary>One phone's duration from the model, or 0 when the list ran out.</summary>
+    static int FramesOf(IReadOnlyList<double> seconds)
+    {
+        double total = 0.0;
+        foreach (double value in seconds)
+            total += value;
+        const double frameSeconds = 0.005;
+        return Math.Max(1, (int)Math.Round(total / frameSeconds));
+    }
+
     static int TakePhoneFrames(IReadOnlyList<int>? frames, ref int cursor)
     {
         if (frames is null || cursor >= frames.Count)

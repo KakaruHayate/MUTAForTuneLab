@@ -151,30 +151,53 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
         {
             if (pair.Value is null)
                 continue;
-            pair.Value.RangeModified.Subscribe((_, _) => mCurveVersion++);
+            // Only the blocks the edited span touches are invalidated. Bumping one global
+            // version here made an edit in bar 1 re-render the whole song.
+            pair.Value.RangeModified.Subscribe((start, end) => BumpCurve(start, end));
         }
 
         // Part properties change the render as well, and the host reports those per field.
         var settings = context.PartProperties;
         if (settings is not null)
         {
-            settings.StringField(Declarations.KeyVocoderMode, "worldline").Modified.Subscribe(() => mCurveVersion++);
+            settings.StringField(Declarations.KeyVocoderMode, "worldline").Modified.Subscribe(() => mGlobalVersion++);
             settings.StringField(Declarations.KeyLanguage, "zh").Modified.Subscribe(() =>
             {
                 mJapanese = ResolveJapanese();
                 mFrontend = CreateFrontend();
-                mCurveVersion++;
+                mGlobalVersion++;
             });
-            settings.StringField(Declarations.KeyBankPitchMode, "auto").Modified.Subscribe(() => mCurveVersion++);
-            settings.DoubleField(Declarations.KeyPhonemeSpeed, 1.0).Modified.Subscribe(() => mCurveVersion++);
-            settings.DoubleField(Declarations.KeyOutputGain, 0.0).Modified.Subscribe(() => mCurveVersion++);
-            settings.DoubleField(Declarations.KeyBankPitchOffset, 0.0).Modified.Subscribe(() => mCurveVersion++);
-            settings.DoubleField(Declarations.KeyBankPitchNote, 0.0).Modified.Subscribe(() => mCurveVersion++);
+            settings.StringField(Declarations.KeyBankPitchMode, "auto").Modified.Subscribe(() => mGlobalVersion++);
+            settings.DoubleField(Declarations.KeyPhonemeSpeed, 1.0).Modified.Subscribe(() => mGlobalVersion++);
+            settings.DoubleField(Declarations.KeyOutputGain, 0.0).Modified.Subscribe(() => mGlobalVersion++);
+            settings.DoubleField(Declarations.KeyBankPitchOffset, 0.0).Modified.Subscribe(() => mGlobalVersion++);
+            settings.DoubleField(Declarations.KeyBankPitchNote, 0.0).Modified.Subscribe(() => mGlobalVersion++);
         }
     }
 
-    /// <summary>Bumped when something other than the notes changes what the render produces.</summary>
-    int mCurveVersion;
+    /// <summary>Bumped when a part-wide setting changes; every block is invalidated.</summary>
+    int mGlobalVersion;
+    /// <summary>Per-block curve versions, bumped only for blocks an automation edit touches.</summary>
+    readonly Dictionary<string, int> mCurveVersions = new(StringComparer.Ordinal);
+    readonly object mCurveGate = new();
+
+    int CurveVersion(string key)
+    {
+        lock (mCurveGate)
+            return mCurveVersions.TryGetValue(key, out int version) ? version : 0;
+    }
+
+    void BumpCurve(double start, double end)
+    {
+        // The event gives the edited time span; bump only the blocks that overlap it.
+        foreach (var block in Plan())
+        {
+            if (block.EndTime <= start || block.StartTime >= end)
+                continue;
+            lock (mCurveGate)
+                mCurveVersions[block.Key] = CurveVersion(block.Key) + 1;
+        }
+    }
 
     static int sNextSessionId;
     readonly int mSessionId;
@@ -620,10 +643,11 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
             }
 
             var members = groups[i];
+            string key = KeyOf(members);
             blocks.Add(new Block
             {
-                Key = KeyOf(members),
-                Signature = SignatureOf(members),
+                Key = key,
+                Signature = SignatureOf(members, key),
                 StartTime = start,
                 EndTime = Math.Max(start + 0.02, end),
                 Notes = members,
@@ -645,13 +669,13 @@ public sealed class MutaSynthesisSession : IVoiceSynthesisSession
         => $"{(notes.Count > 0 ? notes[0].Id : "")}:{notes.Count}";
 
     /// <summary>What the block's audio depends on. Any change here invalidates it.</summary>
-    string SignatureOf(IReadOnlyList<IVoiceSynthesisNote> notes)
+    string SignatureOf(IReadOnlyList<IVoiceSynthesisNote> notes, string key)
     {
         var builder = new System.Text.StringBuilder();
 
-        // A bump of the curve version means an automation moved, which changes the audio of
-        // every block even though no note did.
-        builder.Append(mCurveVersion).Append(';');
+        // Global settings invalidate everything; an automation edit only bumps the blocks
+        // its RangeModified span touched (see BumpCurve).
+        builder.Append(mGlobalVersion).Append(':').Append(CurveVersion(key)).Append(';');
 
         foreach (var note in notes)
         {
