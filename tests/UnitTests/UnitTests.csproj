@@ -24,6 +24,7 @@
     <Compile Include="..\..\src\MutaForTuneLab\Synthesis\LabelBuilder.cs" Link="Synthesis\LabelBuilder.cs" />
     <Compile Include="..\..\src\MutaForTuneLab\Synthesis\F0Mechanism.cs" Link="Synthesis\F0Mechanism.cs" />
     <Compile Include="..\..\src\MutaForTuneLab\Assets\InfFile.cs" Link="Assets\InfFile.cs" />
+    <Compile Include="..\..\src\MutaForTuneLab\Synthesis\BankLayout.cs" Link="Synthesis\BankLayout.cs" />
     <Compile Include="..\..\src\MutaForTuneLab\Synthesis\BankContext.cs" Link="Synthesis\BankContext.cs" />
     <Compile Include="..\..\src\MutaForTuneLab\Synthesis\BankAssembler.cs" Link="Synthesis\BankAssembler.cs" />
     <Compile Include="..\..\src\MutaForTuneLab\Synthesis\BankRenderer.cs" Link="Synthesis\BankRenderer.cs" />

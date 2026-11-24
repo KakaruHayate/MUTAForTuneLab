@@ -99,7 +99,10 @@ public static class VoiceLibrary
         var bankFile = FindOne(directory, id, ".bnk");
         // 一个可用的音源必须有模型、上下文索引与采样体；缺一即视为不是音源文件夹。
         if (voiceFile is null || infFile is null || bankFile is null)
+        {
+            ExplainRejected(directory, voiceFile, infFile, bankFile);
             return null;
+        }
 
         long bankBytes = 0;
         try
@@ -118,6 +121,36 @@ public static class VoiceLibrary
             bankFile,
             ReadDisplayName(directory, id),
             bankBytes);
+    }
+
+    /// <summary>
+    /// A MUTA 1.0 install keeps the recorded bank in <c>&lt;id&gt;.voice</c> and has no model,
+    /// so nothing in it can be loaded as-is. Say so once instead of letting the folder vanish
+    /// from the voice list without a reason.
+    /// </summary>
+    static void ExplainRejected(string directory, string? voice, string? inf, string? bank)
+    {
+        if (inf is null || bank is not null || voice is null)
+            return;
+        if (InfFile.PeekVersion(inf) >= 200)
+            return;
+
+        long size;
+        try
+        {
+            size = new FileInfo(voice).Length;
+        }
+        catch (Exception)
+        {
+            return;
+        }
+        if (size < 50L * 1024 * 1024)
+            return;
+
+        MutaForTuneLab.Synthesis.MutaDiagnostics.Log(
+            $"MUTA 1.0 voice in {directory}: '{Path.GetFileName(voice)}' is the recorded bank, " +
+            $"not a model, and there is no matching .bnk. Install the repacked voice instead " +
+            $"(1.0 index + renamed bank + a 2.0 model; see the README section 'MUTA 1.0 voice').");
     }
 
     /// <summary>优先 &lt;id&gt;.&lt;ext&gt;，否则取目录里唯一的那个扩展名匹配项。</summary>

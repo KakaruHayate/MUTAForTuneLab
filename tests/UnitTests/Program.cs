@@ -181,6 +181,79 @@ var exact = BankContext.ChooseFirstItem(
     new[] { Item("k", "sp", "a", 30), Item("k", "a", "a", 30) }, "sp", "a", 261.6);
 Equal("exact left context wins", "sp", exact?.Left);
 
+// ---- MUTA 1.0 index (version 100) -------------------------------------------
+// Two revisions of the .inf ship in the wild: 2.0 names each row's phone and both
+// neighbours, 1.0 names the row after the context it was recorded in. Both must parse to
+// the same eleven-field view, and 1.0's context names must come back as the phone-keyed
+// groups the selector asks for.
+var v1 = InfFile.ParseDecoded(V1Index(), "synthetic v1");
+Equal("v1 version", 100, v1.Version);
+Equal("v1 items", 6, v1.ItemCount);
+Equal("v1 groups", 6, v1.GroupCount);
+Equal("v1 finals", 1, v1.FinalCount);
+Equal("v1 orders", 50 * 1000 + 26, v1.MgcOrder * 1000 + v1.BapOrder);
+
+InfItem? V1(string raw) => v1.Groups
+    .SelectMany(g => g.Items).FirstOrDefault(i => i.Current == raw);
+
+var bA = V1("b_a")!;
+Equal("v1 syllable keeps its consonant as core", 5, bA.CoreFrames);
+Equal("v1 syllable keeps the vowel onset as suffix", 20, bA.SuffixFrames);
+Equal("v1 syllable prefix is empty", 0, bA.PrefixFrames);
+Equal("v1 frame count", 25, bA.FrameCount);
+Equal("v1 pitch code", 48, bA.PitchCode);
+Equal("v1 bank offset", 0, bA.BankOffset);
+Equal("v1 bank size", 7600, bA.BankSize);
+
+var boundary = V1("a-b")!;
+Equal("v1 boundary keeps the previous vowel as prefix", 20, boundary.PrefixFrames);
+Equal("v1 boundary keeps the consonant as core", 24, boundary.CoreFrames);
+Equal("v1 boundary has no suffix", 0, boundary.SuffixFrames);
+
+var bare = V1("a")!;
+Equal("v1 bare final is all core", 116, bare.CoreFrames);
+
+v1.ValidateBank(1_000_000);
+bool rejectedShortBank = false;
+try
+{
+    v1.ValidateBank(1000);
+}
+catch (InvalidDataException)
+{
+    rejectedShortBank = true;
+}
+Check("v1 bank ranges are checked", rejectedShortBank);
+
+// The group mapping: syllable rows become onsets, bare finals stay finals, and the coda
+// rows are reachable from the finals that end in the coda letter.
+var v1Groups = BankLayout.Build(v1);
+Check("v1 onset group", v1Groups.ContainsKey("b"));
+Check("v1 vowel group", v1Groups.ContainsKey("a"));
+Check("v1 empty-looking group is a vowel", v1Groups.ContainsKey("ib"));
+
+var onsets = v1Groups["b"];
+Check("v1 syllable is an onset", onsets.Any(i => i.Left == "sil" && i.Right == "a"));
+Check("v1 nucleus alternate is registered", onsets.Any(i => i.Left == "sil" && i.Right == "ib"));
+Check("v1 coda alias reaches the final", onsets.Any(i => i.Left == "an"));
+Check("v1 stem matches the nucleus",
+    BankContext.SelectNoteItem(v1Groups, "b", "sil", "ib", 20, 261.6, 0)?.Right == "ib");
+Check("v1 coda transition wins after a nasal final",
+    BankContext.SelectNoteItem(v1Groups, "b", "an", "ai", 20, 261.6, 0)?.Left == "an");
+Check("v1 phrase start uses the syllable",
+    BankContext.SelectNoteItem(v1Groups, "b", "sil", "ai", 20, 261.6, 0)?.Current == "b_a");
+Equal("v1 vowel body keeps its own final",
+    "a", BankContext.SelectNoteItem(v1Groups, "a", "b", "sil", 40, 261.6, 1)?.Current);
+
+// 2.0 must keep parsing exactly as before, including several rows per phone group.
+var v2 = InfFile.ParseDecoded(V2Index(), "synthetic v2");
+Equal("v2 version", 200, v2.Version);
+Equal("v2 items", 2, v2.ItemCount);
+Equal("v2 groups", 2, v2.GroupCount);
+var v2Groups = BankLayout.Build(v2);
+Equal("v2 keeps the phone groups", 2, v2Groups.Count);
+Equal("v2 keeps the row's own neighbours", "sp", v2Groups["k"][0].Left);
+
 // ---- a continuation is a held vowel, not a second attack --------------------
 // MUTA's ExpandNotes skips a "-" slot; the head vowel's length is then derived from the
 // next slot, so it runs across the whole held span.
@@ -248,6 +321,87 @@ var fromFinal = BreathRenderer.Build(new[] { breathNote }, 200 * frameSamples, f
     new[] { syntheticFinal }, 7);
 Check("a bank final is used when present", fromFinal.Skip(10 * frameSamples).Take(100 * frameSamples)
     .Any(v => v != 0.0f));
+
+// ---- synthetic indexes ------------------------------------------------------
+// Both revisions of the .inf built in memory: CI must not need a bank-sized file to
+// exercise the parsers.
+byte[] V1Index()
+{
+    var bytes = new List<byte>();
+    void I32(int value) => bytes.AddRange(BitConverter.GetBytes(value));
+    void Text(string text) => bytes.AddRange(System.Text.Encoding.ASCII.GetBytes(text));
+    void Row(string name, int[] fields)
+    {
+        Text(name);
+        bytes.Add(0x20);
+        foreach (int value in fields)
+            I32(value);
+        bytes.Add(0x0A);
+    }
+
+    foreach (int value in new[] { 100, 6, 50, 26, 1, 6, 1, 0, 0, 1 })
+        I32(value);
+    bytes.Add(0x0A);
+
+    foreach (var (name, capacity) in new[]
+             {
+                 ("b_a", 1), ("b_i", 1), ("a-b", 1), ("a", 1), ("n-b", 1), ("ib", 1),
+             })
+    {
+        Text(name);
+        bytes.Add(0x20);
+        I32(capacity);
+    }
+    bytes.Add(0x0A);
+
+    // left class, right class, pitch, frames, first segment, boundary pitches, offset, bytes
+    Row("b_a", [1, 7, 48, 25, 5, 48, 43, 0, 7600]);
+    Row("b_i", [0, 0, 50, 30, 10, 0, 0, 7600, 9120]);
+    Row("a-b", [1, 4, 50, 44, 20, 0, 50, 16720, 13376]);
+    Row("a", [4, 0, 44, 116, 0, 0, 0, 30096, 35264]);
+    Row("n-b", [7, 3, 50, 41, 20, 0, 50, 65360, 12464]);
+    Row("ib", [1, 0, 44, 60, 0, 0, 0, 77824, 18240]);
+
+    I32(13796);
+    I32(96064);
+    I32(55184);
+    bytes.Add(0x0A);
+    return bytes.ToArray();
+}
+
+byte[] V2Index()
+{
+    var bytes = new List<byte>();
+    void I32(int value) => bytes.AddRange(BitConverter.GetBytes(value));
+    void Text(string text) => bytes.AddRange(System.Text.Encoding.ASCII.GetBytes(text));
+    void Row(string current, string left, string right, int[] fields)
+    {
+        foreach (string name in new[] { current, left, right })
+        {
+            Text(name);
+            bytes.Add(0x20);
+        }
+        foreach (int value in fields)
+            I32(value);
+        bytes.Add(0x0A);
+    }
+
+    foreach (int value in new[] { 200, 2, 50, 26, 0, 2 })
+        I32(value);
+    bytes.Add(0x0A);
+
+    foreach (string name in new[] { "k", "a" })
+    {
+        Text(name);
+        bytes.Add(0x20);
+        I32(1);
+    }
+    bytes.Add(0x0A);
+
+    Row("k", "sp", "a", [0, 1, 30, 5, 20, 5, 57, 0, 0, 0, 9120]);
+    Row("a", "k", "sp", [0, 0, 60, 0, 60, 0, 57, 0, 0, 9120, 18240]);
+    return bytes.ToArray();
+}
 
 Console.WriteLine($"{passed} passed, {failed} failed");
 return failed == 0 ? 0 : 1;

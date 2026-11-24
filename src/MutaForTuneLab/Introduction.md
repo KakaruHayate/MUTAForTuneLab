@@ -8,6 +8,8 @@ Sing with MUTA voice banks inside TuneLab.
   breaths are all driven by TuneLab's editor.
 - No MUTA binaries or voice banks are bundled; the extension reads the `.voice`, `.inf`
   and `.bnk` files of your installed voices.
+- Both index revisions are read: a MUTA 1.0 voice (its sample bank paired with a 2.0 model)
+  installs as 嫣汐1.0 next to the 2.0 voice.
 
 Full documentation, installation and R2 setup:
 <https://github.com/KakaruHayate/MUTAForTuneLab>

@@ -36,6 +36,8 @@ implementation that reads the voice-data formats and drives its own HTS + worldl
   Dragging a phoneme boundary re-renders the affected block.
 - **Per-note bank register offset.** Each note can select a different recorded register from
   the bank by a semitone offset; the note's own pitch is unchanged.
+- **Both MUTA index revisions.** A MUTA 1.0 voice — its sample bank paired with a 2.0 model —
+  installs as 嫣汐1.0 next to the 2.0 voice; see [MUTA 1.0 voice](#muta-10-voice-嫣汐10).
 
 ### Editing integration
 
@@ -69,7 +71,7 @@ implementation that reads the voice-data formats and drives its own HTS + worldl
 | --- | --- |
 | TuneLab | 2.1.0 or newer (SDK 1.1) |
 | OS | Windows x64 |
-| Voice data | an installed MUTA with song voices, or a folder containing `<name>.voice`, `<name>.inf`, `<name>.bnk` |
+| Voice data | an installed MUTA with song voices, or a folder containing `<name>.voice`, `<name>.inf`, `<name>.bnk` (index revision 200 or 100) |
 | .NET (build only) | .NET 8 SDK, CMake, Visual Studio 2022 C++ tools |
 
 The plugin does not include a voice bank. Install MUTA separately, or point the extension at
@@ -83,7 +85,7 @@ a directory containing a bank.
 2. In TuneLab, open the extension manager and install the `.tlx` file.
 3. Restart TuneLab if it was already running.
 4. Select a MUTA voice for the part. If the bank is not in the default MUTA directory, add
-   its folder under **Settings → Extensions → MUTA for TuneLab → Voice folders**.
+   its folder under **Settings → Extensions → MUTA for TuneLab → Extra voice directories**.
 
 ### Full vs. lite
 
@@ -93,6 +95,38 @@ a directory containing a bank.
 | Lite | worldline R1.1 only, no ONNX/GPU surface | ~5 MB |
 
 Both builds produce the same output on R1.1.
+
+### MUTA 1.0 voice (嫣汐1.0)
+
+MUTA 1.0 keeps a song voice in two files whose names do not match 2.0's: `yanxi.inf` (index
+revision 100, nine fields per row) and `yanxi.voice` — but that one is the 222 MB sample
+bank, not a model. The plugin reads both index revisions, so a 1.0 voice only needs the bank
+renamed and a model added:
+
+| File | Comes from |
+| --- | --- |
+| `<id>.inf` | MUTA 1.0 `yanxi.inf` |
+| `<id>.bnk` | MUTA 1.0 `yanxi.voice`, renamed |
+| `<id>.voice` | MUTA 2.0 `yanxi.voice` (the acoustic model) |
+| `<id>.chr` | `name=嫣汐1.0`, GBK |
+
+`tools/repack-muta10.ps1` builds that folder and a zip of it:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\repack-muta10.ps1 `
+  -Muta10Dir "D:\muta1\1.0.0.3" `
+  -Muta2Dir  "C:\Program Files (x86)\Muta"
+```
+
+The default id is `yanxi10`, and the display name is the 2.0 voice's own name plus `1.0`, so
+the 1.0 and 2.0 voices can be installed side by side. The pack ships separately from the
+`.tlx`: extract it and add its folder under **Settings → Extensions → MUTA for TuneLab →
+Extra voice directories**.
+
+Timing, pitch and phonemes come from the 2.0 model; the frames come from the 1.0 bank. The
+1.0 index stores one unit per recorded syllable (`initial_nucleus`), one per boundary
+(`final-initial`) and long recordings of bare finals; the plugin maps those onto the same
+two slots it uses for a 2.0 bank.
 
 ## Usage
 
@@ -207,6 +241,7 @@ powershell -ExecutionPolicy Bypass -File tools\smoke.ps1 -TuneLabDir "C:\Program
 - [Technical overview](docs/technical.md)
 - [Implementation notes](docs/implementation.md)
 - [Japanese/Chinese phone table](docs/ja-zh-phone-table.md)
+- [Changelog](CHANGELOG.md)
 - [Third-party notices](THIRD-PARTY-NOTICES.md)
 
 ## License

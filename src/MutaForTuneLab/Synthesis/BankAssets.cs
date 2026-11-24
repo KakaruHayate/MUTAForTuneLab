@@ -31,16 +31,7 @@ public sealed class BankAssets : IBankSource
     {
         Info = info;
         mBankPath = bankPath;
-
-        var groups = new Dictionary<string, List<InfItem>>(StringComparer.Ordinal);
-        foreach (var group in info.Groups)
-        {
-            if (groups.TryGetValue(group.Name, out var existing))
-                existing.AddRange(group.Items);
-            else
-                groups[group.Name] = new List<InfItem>(group.Items);
-        }
-        Groups = groups;
+        Groups = BankLayout.Build(info);
     }
 
     public static BankAssets Load(MutaVoice voice)

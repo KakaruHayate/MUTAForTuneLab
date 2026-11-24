@@ -32,6 +32,8 @@ HTS + worldline 链路。
   bank 也会遵循它们的时长、拉伸权重和 body offset。拖动音素分界线会重渲染受影响的块。
 - **音符级换采样音区偏移。** 每个音符可以用半音偏移选择 bank 里不同的录音音区；
   音符自身的音高不变。
+- **两版 MUTA 索引都能读。** MUTA 1.0 音源——采样库配 2.0 模型——安装后显示为「嫣汐1.0」，
+  与 2.0 的嫣汐并存；见 [MUTA 1.0 音源](#muta-10-音源嫣汐10)。
 
 ### 编辑器集成
 
@@ -59,7 +61,7 @@ HTS + worldline 链路。
 | --- | --- |
 | TuneLab | 2.1.0 或更新（SDK 1.1） |
 | 系统 | Windows x64 |
-| 音源 | 已安装的 MUTA 歌曲音源，或包含 `<名字>.voice`、`<名字>.inf`、`<名字>.bnk` 的目录 |
+| 音源 | 已安装的 MUTA 歌曲音源，或包含 `<名字>.voice`、`<名字>.inf`、`<名字>.bnk` 的目录（索引 revision 200 或 100） |
 | 构建 | .NET 8 SDK、CMake、Visual Studio 2022 C++ 工具 |
 
 插件不自带音源。请单独安装 MUTA，或把包含音源的目录指给扩展。
@@ -72,7 +74,7 @@ HTS + worldline 链路。
 2. 在 TuneLab 的扩展管理器中安装 `.tlx`。
 3. 如果 TuneLab 正在运行，安装后重启一次。
 4. 给 part 选择 MUTA 音源。音源不在默认 MUTA 目录时，在
-   **设置 → 扩展 → MUTA for TuneLab → 音源目录**里添加。
+   **设置 → 扩展 → MUTA for TuneLab → 额外音源目录**里添加。
 
 ### 完整版与便携版
 
@@ -82,6 +84,35 @@ HTS + worldline 链路。
 | 便携版 | 只有 worldline R1.1，不含 ONNX/GPU 部分 | 约 5 MB |
 
 两者在 R1.1 下输出相同。
+
+### MUTA 1.0 音源（嫣汐1.0）
+
+MUTA 1.0 的歌曲音源只有两个文件，名字和 2.0 对不上：`yanxi.inf`（索引 revision 100，
+每行九个字段）和 `yanxi.voice`——后者是 222 MB 的采样库，不是声学模型。插件两版索引
+都能读，所以 1.0 音源只要把采样库改名、再配一个模型：
+
+| 文件 | 来源 |
+| --- | --- |
+| `<id>.inf` | MUTA 1.0 的 `yanxi.inf` |
+| `<id>.bnk` | MUTA 1.0 的 `yanxi.voice`，改名 |
+| `<id>.voice` | MUTA 2.0 的 `yanxi.voice`（声学模型） |
+| `<id>.chr` | `name=嫣汐1.0`，GBK 编码 |
+
+`tools/repack-muta10.ps1` 会生成这个目录并一并打成 zip：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\repack-muta10.ps1 `
+  -Muta10Dir "D:\muta1\1.0.0.3" `
+  -Muta2Dir  "C:\Program Files (x86)\Muta"
+```
+
+默认 id 是 `yanxi10`，显示名取 2.0 音源自己的名字加 `1.0`，所以 1.0 和 2.0 可以同时装。
+这个包和 `.tlx` 分开分发：解压后把里面的目录加进 **设置 → 扩展 → MUTA for TuneLab →
+额外音源目录**。
+
+时间、音高和音素来自 2.0 模型，频谱帧来自 1.0 采样库。1.0 索引里，一个录音音节是一个
+单元（`initial_nucleus`），音节之间的边界是另一种单元（`final-initial`），长音用单独的
+韵母录音；插件把这些映射到和 2.0 bank 相同的两个 slot 上。
 
 ## 使用
 
@@ -189,6 +220,7 @@ powershell -ExecutionPolicy Bypass -File tools\smoke.ps1 -TuneLabDir "C:\Program
 - [技术说明](docs/technical.md)
 - [实现说明](docs/implementation.md)
 - [中日音素对照表](docs/ja-zh-phone-table.md)
+- [更新日志](CHANGELOG.md)
 - [第三方声明](THIRD-PARTY-NOTICES.md)
 
 ## 许可
