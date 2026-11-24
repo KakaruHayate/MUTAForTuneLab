@@ -25,13 +25,13 @@ param(
 
 $ErrorActionPreference = "Stop"
 $repo = Split-Path -Parent $PSScriptRoot
-$package = if ($Package) { $Package } else { Join-Path $repo "artifacts\package" }
+$package = if ($Package) { $Package } else { Join-Path (Join-Path $repo "artifacts") "package" }
 
 if (-not (Test-Path (Join-Path $package "manifest.json"))) {
     throw "artifacts\package has no manifest.json - run tools\build.ps1 first."
 }
 if (-not $Output) {
-    $Output = Join-Path $repo "artifacts\mutafortunelab.tlx"
+    $Output = Join-Path (Join-Path $repo "artifacts") "mutafortunelab.tlx"
 }
 
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $Output) | Out-Null
@@ -40,7 +40,7 @@ if (Test-Path $Output) { Remove-Item -LiteralPath $Output -Force }
 Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
-$root = (Resolve-Path $package).Path.TrimEnd('\')
+$root = (Resolve-Path $package).Path.TrimEnd([char[]]('/', '\'))
 $entries = 0
 $zip = [System.IO.Compression.ZipFile]::Open($Output, [System.IO.Compression.ZipArchiveMode]::Create)
 try {

@@ -5,6 +5,9 @@ using System.Linq;
 using Microsoft.ML.OnnxRuntime;
 using System.Threading;
 using Microsoft.ML.OnnxRuntime.Tensors;
+#if MUTA_WEBGPU
+using Microsoft.ML.OnnxRuntime.EP.WebGpu;
+#endif
 
 namespace MutaForTuneLab.Synthesis;
 
@@ -42,8 +45,9 @@ public sealed class R2Vocoder : IR2Vocoder
         new(FindGpuDevices, LazyThreadSafetyMode.ExecutionAndPublication);
 
     /// <summary>
-    /// Windows ships the DirectML build; Linux and macOS use the 1.31 package with WebGPU.
-    /// The lookup is by name so a build without that provider simply finds nothing and the
+    /// Windows ships the DirectML build of the runtime. Elsewhere the GPU provider is the
+    /// WebGPU plugin EP, which has to be registered before the runtime lists its devices;
+    /// the lookup is by name so a build without any provider simply finds nothing and the
     /// session falls back to CPU.
     /// </summary>
     static string GpuEpName => OperatingSystem.IsWindows() ? "dml" : "webgpu";
@@ -52,6 +56,11 @@ public sealed class R2Vocoder : IR2Vocoder
     {
         try
         {
+#if MUTA_WEBGPU
+            // The plugin EP is a separate native library: no devices are reported until it
+            // is registered. Registering twice throws, so this only runs once (Lazy).
+            OrtEnv.Instance().RegisterExecutionProviderLibrary("webgpu_ep", WebGpuEp.GetLibraryPath());
+#endif
             return OrtEnv.Instance().GetEpDevices()
                 .Where(device => device.EpName.Contains(GpuEpName, StringComparison.OrdinalIgnoreCase))
                 .ToList();
@@ -200,9 +209,9 @@ public sealed class R2Vocoder : IR2Vocoder
                 new Dictionary<string, string>());
         }
 
-        // The mel graph uses a Resize node that DirectML rejects with E_INVALIDARG, so it
-        // stays on CPU -- it is 85 KB and costs nothing. The 56 MB vocoder is what needs
-        // the GPU, and it is the one given the DirectML provider.
+        // The mel graph keeps a Resize node the DirectML build rejects with E_INVALIDARG, so
+        // it stays on CPU -- it is 85 KB and costs nothing. The large vocoder graph is what
+        // needs the GPU, and it is the session that gets the GPU provider.
         using var cpuOptions = new SessionOptions
         {
             GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL,
