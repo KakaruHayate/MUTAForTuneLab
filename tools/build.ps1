@@ -71,6 +71,10 @@ if ($LASTEXITCODE -ne 0) { throw "dotnet build failed ($LASTEXITCODE)" }
 
 $windows = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
     [System.Runtime.InteropServices.OSPlatform]::Windows)
+$mac = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
+    [System.Runtime.InteropServices.OSPlatform]::OSX)
+# CMake builds the native libraries without a "lib" prefix, so only the suffix differs.
+$suffix = if ($windows) { "dll" } elseif ($mac) { "dylib" } else { "so" }
 
 # A build without a RuntimeIdentifier stages every RID's native assets under runtimes/.
 # Keep the ones this machine can load, flat beside the managed assembly (that is the
@@ -79,8 +83,7 @@ $stagedRuntimes = Join-Path $package "runtimes"
 if (Test-Path $stagedRuntimes) {
     $architecture = [System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture
     $arch = switch ($architecture) { 'X64' { 'x64' } 'Arm64' { 'arm64' } default { 'x86' } }
-    $os = if ($windows) { 'win' } elseif ([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
-            [System.Runtime.InteropServices.OSPlatform]::OSX)) { 'osx' } else { 'linux' }
+    $os = if ($windows) { 'win' } elseif ($mac) { 'osx' } else { 'linux' }
     $native = Join-Path (Join-Path $stagedRuntimes "$os-$arch") "native"
     if (Test-Path $native) {
         Get-ChildItem $native -File | ForEach-Object {
@@ -97,24 +100,27 @@ Get-ChildItem $package -Filter '*.pdb' -File -ErrorAction SilentlyContinue |
 Get-ChildItem $package -Filter 'DirectML.Debug.*' -File -ErrorAction SilentlyContinue |
     Remove-Item -Force
 
-# The native libraries are not produced by dotnet build. Without them the package still
-# loads, enumerates its parameters, and passes any check that never synthesises -- and
-# then fails at the first note with "Unable to load DLL 'muta_hts'".
-# tools/build-native.ps1 is the MSVC build, so only Windows can satisfy this today.
-if ($windows) {
-    foreach ($required in 'muta_hts.dll', 'worldline.dll') {
-        if (-not (Test-Path (Join-Path $package $required))) {
-            throw ("package is missing {0} - run tools\build-native.ps1, or copy the native " +
-                   "libraries into artifacts\package before packing") -f $required
-        }
-    }
-    if (-not (Test-Path (Join-Path $package 'muta_sinsy.dll'))) {
-        Write-Warning "muta_sinsy.dll is missing: Japanese parts will fail to synthesise."
+# The native libraries are not produced by dotnet build, and the lite package shares them
+# with the full one rather than compiling its own.
+if ($Lite) {
+    $full = Join-Path (Join-Path $repo "artifacts") "package"
+    foreach ($stem in 'muta_hts', 'worldline', 'muta_sinsy') {
+        $file = "$stem.$suffix"
+        $source = Join-Path $full $file
+        if (Test-Path $source) { Copy-Item -LiteralPath $source -Destination (Join-Path $package $file) -Force }
     }
 }
-else {
-    Write-Warning ("native libraries are MSVC-only; this package has none, so synthesis on " +
-                   "this platform needs tools\build-native.ps1 ported first")
+
+# Without them the package still loads and enumerates its parameters, and then fails at the
+# first note with "Unable to load DLL 'muta_hts'".
+foreach ($stem in 'muta_hts', 'worldline') {
+    $file = "$stem.$suffix"
+    if (-not (Test-Path (Join-Path $package $file))) {
+        throw ("package is missing {0} - run tools\build-native.ps1 first" -f $file)
+    }
+}
+if (-not (Test-Path (Join-Path $package "muta_sinsy.$suffix"))) {
+    Write-Warning "muta_sinsy.$suffix is missing: Japanese parts will fail to synthesise."
 }
 
 Write-Host ""

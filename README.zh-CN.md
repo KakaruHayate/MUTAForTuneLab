@@ -19,7 +19,7 @@
 | | |
 | --- | --- |
 | TuneLab | 2.1.0 或更新 |
-| 系统 | Windows x64。Linux x64 / macOS arm64 有构建产物，但暂时无法合成。 |
+| 系统 | Windows x64、Linux x64、macOS arm64 |
 | 音源 | 已安装的 MUTA，或包含 `<名字>.voice`、`<名字>.inf`、`<名字>.bnk` 的目录 |
 
 ## 安装

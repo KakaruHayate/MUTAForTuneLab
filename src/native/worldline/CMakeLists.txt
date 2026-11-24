@@ -12,6 +12,14 @@
 cmake_minimum_required(VERSION 3.20)
 project(worldline CXX C)
 
+# ELF and Mach-O interpose every global symbol by default, and Sinsy links its own copy of
+# the HTS engine: only the wrapper's exported functions may be visible, or the two engines
+# bind to each other's symbols.
+if(NOT MSVC)
+  set(CMAKE_C_VISIBILITY_PRESET hidden)
+  set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+  set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
+endif()
 set(WORLDLINE_SRC "" CACHE PATH "Vendored OpenUtau worldline directory")
 set(WORLD_SRC "" CACHE PATH "Vendored WORLD directory (contains world/*.h)")
 if(WORLDLINE_SRC STREQUAL "" OR WORLD_SRC STREQUAL "")

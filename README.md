@@ -21,7 +21,7 @@ audio itself with the bundled worldline vocoder. No MUTA binary or voice data is
 | | |
 | --- | --- |
 | TuneLab | 2.1.0 or newer |
-| OS | Windows x64. Linux x64 and macOS arm64 packages are published but cannot render yet. |
+| OS | Windows x64, Linux x64, macOS arm64 |
 | Voice data | MUTA installed, or a folder containing `<name>.voice`, `<name>.inf`, `<name>.bnk` |
 
 ## Install

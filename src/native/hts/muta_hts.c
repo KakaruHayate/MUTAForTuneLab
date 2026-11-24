@@ -117,7 +117,9 @@ MUTA_EXPORT MutaHts *muta_hts_create(const char *voice_path)
 
     voices[0] = voice_path;
     HTS_Engine_initialize(&handle->engine);
-    if (HTS_Engine_load(&handle->engine, voices, 1) != TRUE) {
+    /* HTS_Engine_load takes char **; the list is only read, and GCC 14+ rejects the
+       implicit const drop that MSVC merely warns about. */
+    if (HTS_Engine_load(&handle->engine, (char **) voices, 1) != TRUE) {
         HTS_Engine_clear(&handle->engine);
         free(handle);
         return NULL;

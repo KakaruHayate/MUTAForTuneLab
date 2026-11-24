@@ -16,13 +16,17 @@ namespace MutaForTuneLab.Native;
 /// </summary>
 public static class NativeLibraries
 {
-    /// <summary>Import name → file name in the package folder.</summary>
+    /// <summary>Import name → file stem in the package folder; the platform picks the suffix.</summary>
     static readonly Dictionary<string, string> Libraries = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["muta_hts"] = "muta_hts.dll",
-        ["worldline"] = "worldline.dll",
-        ["muta_sinsy"] = "muta_sinsy.dll",
+        ["muta_hts"] = "muta_hts",
+        ["worldline"] = "worldline",
+        ["muta_sinsy"] = "muta_sinsy",
     };
+
+    /// <summary>CMake builds without a "lib" prefix, so only the suffix differs by platform.</summary>
+    static string NativeSuffix
+        => OperatingSystem.IsWindows() ? ".dll" : OperatingSystem.IsMacOS() ? ".dylib" : ".so";
 
     static readonly object Gate = new();
     static bool mInstalled;
@@ -51,11 +55,11 @@ public static class NativeLibraries
 
     static IntPtr Resolve(string name, Assembly assembly, DllImportSearchPath? searchPath)
     {
-        if (!Libraries.TryGetValue(name, out var file))
+        if (!Libraries.TryGetValue(name, out var stem))
             return IntPtr.Zero;
 
         string directory = Path.GetDirectoryName(assembly.Location) ?? ".";
-        string candidate = Path.Combine(directory, file);
+        string candidate = Path.Combine(directory, stem + NativeSuffix);
         return File.Exists(candidate) ? NativeLibrary.Load(candidate) : IntPtr.Zero;
     }
 

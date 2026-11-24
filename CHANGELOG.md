@@ -4,8 +4,9 @@
 
 - MUTA 1.0 voices. The 1.0 index revision is read, so a repacked 嫣汐1.0 voice (1.0
   samples plus a 2.0 model) can be installed next to the 2.0 voice.
-- Linux x64 and macOS arm64 packages in CI. On those platforms R2 uses the WebGPU plugin
-  execution provider of the latest ONNX Runtime; Windows keeps DirectML.
+- Linux x64 and macOS arm64 packages: the native HTS, worldline and Sinsy libraries build
+  with the platform toolchain (gcc / clang), and R2 uses the WebGPU plugin execution
+  provider of the latest ONNX Runtime. Windows keeps DirectML.
 - Documentation and release notes shortened.
 
 ## 0.1.0

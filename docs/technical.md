@@ -57,8 +57,8 @@ powershell -ExecutionPolicy Bypass -File tools\build.ps1 -TuneLabDir <TuneLab>  
 powershell -ExecutionPolicy Bypass -File tools\pack-tlx.ps1
 ```
 
-CI 在 Windows / Linux / macOS 上各产出一个 `.tlx`；原生库目前只用 MSVC 构建，所以
-Linux / macOS 的包暂时不能合成。
+CI 在 Windows / Linux / macOS 上各跑一次 `build-native.ps1` 并各产出一个 `.tlx`；三个平台的
+原生库都用系统工具链构建（MSVC / gcc / clang），输出分别是 `.dll` / `.so` / `.dylib`。
 
 ## 限制
 

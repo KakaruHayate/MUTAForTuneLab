@@ -33,21 +33,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Windows is the target the native libraries are built for (MSVC), and the only
-          # one that is verified end to end: ONNX Runtime 1.23 with DirectML, pinned
-          # because 1.24 hangs on some drivers.
+          # Windows is the target the native libraries were first built for: ONNX Runtime
+          # 1.23 with DirectML, pinned because 1.24 hangs on some drivers.
           - os: windows-latest
             rid: win-x64
-            native: true
-          # Linux/macOS: same managed plugin, latest ONNX Runtime with the WebGPU plugin
-          # execution provider for R2. The native synthesis libraries are MSVC-only, so
-          # these packages carry no HTS/worldline yet and are not exercised here.
+          # Linux/macOS compile the same native libraries with the platform toolchain and
+          # take the latest ONNX Runtime with the WebGPU plugin execution provider for R2.
           - os: ubuntu-latest
             rid: linux-x64
-            native: false
           - os: macos-latest
             rid: osx-arm64
-            native: false
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -56,7 +51,6 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: native libraries
-        if: matrix.native
         shell: pwsh
         run: ./tools/build-native.ps1
 
@@ -78,7 +72,7 @@ jobs:
         run: |
           ./tools/pack-tlx.ps1
           Move-Item artifacts/mutafortunelab.tlx "artifacts/mutafortunelab-${{ matrix.rid }}.tlx"
-          if ('${{ matrix.native }}' -eq 'true') {
+          if ('${{ runner.os }}' -eq 'Windows') {
             ./tools/build.ps1 -Lite -TuneLabDir "${{ steps.sdk.outputs.dir }}"
             ./tools/pack-tlx.ps1 -Package artifacts/package-lite `
               -Output "artifacts/mutafortunelab-${{ matrix.rid }}-lite.tlx"
@@ -114,7 +108,7 @@ jobs:
 
             - `win-x64` (full): worldline R1.1 + R2 with DirectML.
             - `win-x64-lite`: worldline R1.1 only, no ONNX Runtime.
-            - `linux-x64`, `osx-arm64`: managed build with the WebGPU plugin EP for R2. The
-              native synthesis libraries are Windows-only for now, so these cannot render.
+            - `linux-x64`, `osx-arm64`: the same libraries built with the platform toolchain
+              (gcc / clang), R2 through the WebGPU plugin EP.
 
             See [README](README.md) and [CHANGELOG](CHANGELOG.md).

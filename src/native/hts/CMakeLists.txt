@@ -11,6 +11,14 @@
 cmake_minimum_required(VERSION 3.20)
 project(muta_hts C)
 
+# ELF and Mach-O interpose every global symbol by default, and Sinsy links its own copy of
+# the HTS engine: only the wrapper's exported functions may be visible, or the two engines
+# bind to each other's symbols.
+if(NOT MSVC)
+  set(CMAKE_C_VISIBILITY_PRESET hidden)
+  set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+  set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
+endif()
 set(HTS_SRC "" CACHE PATH "Patched hts_engine_API source directory")
 if(HTS_SRC STREQUAL "")
   message(FATAL_ERROR "HTS_SRC is required: -DHTS_SRC=<patched hts_engine_API dir>")

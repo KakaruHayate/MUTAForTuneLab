@@ -4,8 +4,10 @@
   Build the native libraries into the package folder.
 
 .DESCRIPTION
-  Today this builds muta_hts (the HTS engine plus our wrapper). worldline and the
-  Sinsy front end join it as their phases land.
+  Builds muta_hts (the HTS engine plus our wrapper), worldline (the vocoder) and
+  muta_sinsy (the Japanese label front end). The same script runs on Windows, Linux and
+  macOS: CMake picks the toolchain, and the shared libraries come out as .dll, .so or
+  .dylib accordingly.
 
   The vendored HTS tree is never compiled in place: it is copied to a scratch
   directory and the patches in third_party/hts_engine_API/patches are applied there,
@@ -19,7 +21,7 @@
   Release (default) or Debug.
 
 .PARAMETER KeepScratch
-  Do not delete build\native before preparing sources.
+  Do not delete build/native before preparing sources.
 
 .EXAMPLE
   powershell -ExecutionPolicy Bypass -File tools\build-native.ps1
@@ -33,19 +35,76 @@ param(
 
 $ErrorActionPreference = "Stop"
 $repo = Split-Path -Parent $PSScriptRoot
-$vendored = Join-Path $repo "third_party\hts_engine_API"
-$scratch = Join-Path $repo "build\native"
-$source = Join-Path $scratch "hts_src"
-$buildDir = Join-Path $scratch "hts_build"
-$package = Join-Path $repo "artifacts\package"
+$vendored = Join-Path (Join-Path $repo "third_party") "hts_engine_API"
+$scratch = Join-Path (Join-Path $repo "build") "native"
+$package = Join-Path (Join-Path $repo "artifacts") "package"
+
+$windows = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
+    [System.Runtime.InteropServices.OSPlatform]::Windows)
+$mac = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
+    [System.Runtime.InteropServices.OSPlatform]::OSX)
+$suffix = if ($windows) { "dll" } elseif ($mac) { "dylib" } else { "so" }
 
 if (-not $KeepScratch -and (Test-Path $scratch)) {
     Remove-Item -LiteralPath $scratch -Recurse -Force
 }
 New-Item -ItemType Directory -Force -Path $scratch, $package | Out-Null
 
+# Multi-config generators (Visual Studio, Xcode) keep the configuration in a subfolder and
+# take --config; single-config ones need CMAKE_BUILD_TYPE at configure time.
+$multiConfig = $false
+$generator = $null
+if ($windows) {
+    foreach ($candidate in @("Visual Studio 18 2026", "Visual Studio 17 2022", "Ninja")) {
+        $known = (& cmake --help 2>&1 | Select-String -SimpleMatch $candidate)
+        if ($known) { $generator = $candidate; break }
+    }
+}
+else {
+    $known = (& cmake --help 2>&1 | Select-String -SimpleMatch "Ninja")
+    if ($known -and (Get-Command ninja -ErrorAction SilentlyContinue)) { $generator = "Ninja" }
+    else { $generator = "Unix Makefiles" }
+}
+if (-not $generator) { throw "no usable CMake generator found" }
+$multiConfig = $generator -like "Visual Studio*" -or $generator -eq "Xcode"
+Write-Host ("generator: {0}" -f $generator)
+
+function Invoke-CMakeBuild {
+    param(
+        [string]$What,
+        [string]$SourceDir,
+        [string]$BuildDir,
+        [hashtable]$Definitions,
+        [string]$Target
+    )
+
+    $arguments = @("-S", $SourceDir, "-B", $BuildDir, "-G", $generator)
+    if ($generator -like "Visual Studio*") { $arguments += @("-A", "x64") }
+    if (-not $multiConfig) { $arguments += ("-DCMAKE_BUILD_TYPE=" + $Configuration) }
+    foreach ($key in $Definitions.Keys) { $arguments += ("-D{0}={1}" -f $key, $Definitions[$key]) }
+
+    Write-Host "configuring $What..."
+    & cmake @arguments
+    if ($LASTEXITCODE -ne 0) { throw "$What configure failed" }
+
+    Write-Host "building $What..."
+    & cmake --build $BuildDir --config $Configuration --parallel
+    if ($LASTEXITCODE -ne 0) { throw "$What build failed" }
+
+    $outputDir = if ($multiConfig) { Join-Path $BuildDir $Configuration } else { $BuildDir }
+    if (-not (Test-Path $outputDir)) { $outputDir = $BuildDir }
+    $file = Get-ChildItem $outputDir -Filter ("{0}.{1}" -f $Target, $suffix) -Recurse |
+        Select-Object -First 1
+    if (-not $file) { throw ("{0}.{1} not found under {2}" -f $Target, $suffix, $outputDir) }
+
+    $destination = Join-Path $package $file.Name
+    Copy-Item -LiteralPath $file.FullName -Destination $destination -Force
+    Write-Host ("wrote {0} ({1:N0} bytes)" -f $destination, $file.Length)
+}
+
 # --- 1. sources: copy upstream, then patch the copy ---
 Write-Host "preparing patched HTS sources..."
+$source = Join-Path $scratch "hts_src"
 Copy-Item -LiteralPath $vendored -Destination $source -Recurse -Force
 Get-ChildItem (Join-Path $vendored "patches") -Filter *.patch | Sort-Object Name | ForEach-Object {
     Write-Host ("  applying {0}" -f $_.Name)
@@ -53,86 +112,24 @@ Get-ChildItem (Join-Path $vendored "patches") -Filter *.patch | Sort-Object Name
     if ($LASTEXITCODE -ne 0) { throw ("git apply failed on {0}" -f $_.Name) }
 }
 
-# --- 2. configure ---
-Write-Host "configuring..."
-$generator = $null
-foreach ($candidate in @("Visual Studio 18 2026", "Visual Studio 17 2022", "Ninja")) {
-    $known = (& cmake --help 2>&1 | Select-String -SimpleMatch $candidate)
-    if ($known) { $generator = $candidate; break }
-}
-if (-not $generator) { throw "no usable CMake generator found" }
-Write-Host ("  generator: {0}" -f $generator)
+# --- 2. the three libraries ---
+Invoke-CMakeBuild -What "muta_hts" `
+    -SourceDir (Join-Path (Join-Path $repo "src") "native\hts") `
+    -BuildDir (Join-Path $scratch "hts_build") `
+    -Definitions @{ HTS_SRC = $source } `
+    -Target "muta_hts"
 
-$configureArgs = @(
-    "-S", (Join-Path $repo "src\native\hts"),
-    "-B", $buildDir,
-    "-G", $generator,
-    ("-DHTS_SRC=" + $source)
-)
-if ($generator -like "Visual Studio*") { $configureArgs += @("-A", "x64") }
+Invoke-CMakeBuild -What "worldline" `
+    -SourceDir (Join-Path (Join-Path $repo "src") "native\worldline") `
+    -BuildDir (Join-Path $scratch "worldline_build") `
+    -Definitions @{
+        WORLDLINE_SRC = (Join-Path (Join-Path $repo "third_party") "worldline")
+        WORLD_SRC = (Join-Path (Join-Path $repo "third_party") "world")
+    } `
+    -Target "worldline"
 
-& cmake @configureArgs
-if ($LASTEXITCODE -ne 0) { throw "cmake configure failed" }
-
-# --- 3. build ---
-Write-Host "building..."
-& cmake --build $buildDir --config $Configuration
-if ($LASTEXITCODE -ne 0) { throw "cmake build failed" }
-
-# --- 4. copy the artifacts next to the managed plugin ---
-$built = Join-Path $buildDir $Configuration
-if (-not (Test-Path $built)) { $built = $buildDir }
-$dll = Get-ChildItem $built -Filter "muta_hts.dll" -Recurse | Select-Object -First 1
-if (-not $dll) { throw "muta_hts.dll not found under $built" }
-Copy-Item -LiteralPath $dll.FullName -Destination (Join-Path $package "muta_hts.dll") -Force
-
-Write-Host ""
-Write-Host ("wrote {0} ({1:N0} bytes)" -f (Join-Path $package "muta_hts.dll"), $dll.Length)
-
-# --- 5. worldline: no patching needed, the vendored trees are already final ---
-Write-Host ""
-Write-Host "building worldline..."
-$wlBuild = Join-Path $scratch "worldline_build"
-$wlArgs = @(
-    "-S", (Join-Path $repo "src\native\worldline"),
-    "-B", $wlBuild,
-    "-G", $generator,
-    ("-DWORLDLINE_SRC=" + (Join-Path $repo "third_party\worldline")),
-    ("-DWORLD_SRC=" + (Join-Path $repo "third_party\world"))
-)
-if ($generator -like "Visual Studio*") { $wlArgs += @("-A", "x64") }
-
-& cmake @wlArgs
-if ($LASTEXITCODE -ne 0) { throw "worldline configure failed" }
-& cmake --build $wlBuild --config $Configuration
-if ($LASTEXITCODE -ne 0) { throw "worldline build failed" }
-
-$wlOut = Join-Path $wlBuild $Configuration
-if (-not (Test-Path $wlOut)) { $wlOut = $wlBuild }
-$wlDll = Get-ChildItem $wlOut -Filter "worldline.dll" -Recurse | Select-Object -First 1
-if (-not $wlDll) { throw "worldline.dll not found under $wlOut" }
-Copy-Item -LiteralPath $wlDll.FullName -Destination (Join-Path $package "worldline.dll") -Force
-Write-Host ("wrote {0} ({1:N0} bytes)" -f (Join-Path $package "worldline.dll"), $wlDll.Length)
-# --- 6. muta_sinsy: the Japanese label builder ---
-Write-Host ""
-Write-Host "building muta_sinsy..."
-$sinsyBuild = Join-Path $scratch "sinsy_build"
-$sinsyArgs = @(
-    "-S", (Join-Path $repo "src\native\sinsy"),
-    "-B", $sinsyBuild,
-    "-G", $generator,
-    ("-DSINSY_SRC=" + (Join-Path $repo "third_party\sinsy"))
-)
-if ($generator -like "Visual Studio*") { $sinsyArgs += @("-A", "x64") }
-
-& cmake @sinsyArgs
-if ($LASTEXITCODE -ne 0) { throw "muta_sinsy configure failed" }
-& cmake --build $sinsyBuild --config $Configuration
-if ($LASTEXITCODE -ne 0) { throw "muta_sinsy build failed" }
-
-$sinsyOut = Join-Path $sinsyBuild $Configuration
-if (-not (Test-Path $sinsyOut)) { $sinsyOut = $sinsyBuild }
-$sinsyDll = Get-ChildItem $sinsyOut -Filter "muta_sinsy.dll" -Recurse | Select-Object -First 1
-if (-not $sinsyDll) { throw "muta_sinsy.dll not found under $sinsyOut" }
-Copy-Item -LiteralPath $sinsyDll.FullName -Destination (Join-Path $package "muta_sinsy.dll") -Force
-Write-Host ("wrote {0} ({1:N0} bytes)" -f (Join-Path $package "muta_sinsy.dll"), $sinsyDll.Length)
+Invoke-CMakeBuild -What "muta_sinsy" `
+    -SourceDir (Join-Path (Join-Path $repo "src") "native\sinsy") `
+    -BuildDir (Join-Path $scratch "sinsy_build") `
+    -Definitions @{ SINSY_SRC = (Join-Path (Join-Path $repo "third_party") "sinsy") } `
+    -Target "muta_sinsy"
