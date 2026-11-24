@@ -72,11 +72,9 @@ jobs:
         run: |
           ./tools/pack-tlx.ps1
           Move-Item artifacts/mutafortunelab.tlx "artifacts/mutafortunelab-${{ matrix.rid }}.tlx"
-          if ('${{ runner.os }}' -eq 'Windows') {
-            ./tools/build.ps1 -Lite -TuneLabDir "${{ steps.sdk.outputs.dir }}"
-            ./tools/pack-tlx.ps1 -Package artifacts/package-lite `
-              -Output "artifacts/mutafortunelab-${{ matrix.rid }}-lite.tlx"
-          }
+          ./tools/build.ps1 -Lite -TuneLabDir "${{ steps.sdk.outputs.dir }}"
+          ./tools/pack-tlx.ps1 -Package artifacts/package-lite `
+            -Output "artifacts/mutafortunelab-${{ matrix.rid }}-lite.tlx"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -100,15 +98,15 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           files: dist/*.tlx
-          prerelease: true
+          name: MUTA for TuneLab ${{ github.ref_name }}
+          prerelease: false
           body: |
             An independent TuneLab voice plugin: it sings with MUTA voice banks through the
             built-in worldline vocoder and exposes the usual part, note and automation
             parameters. No MUTA binary or voice data is included.
 
-            - `win-x64` (full): worldline R1.1 + R2 with DirectML.
-            - `win-x64-lite`: worldline R1.1 only, no ONNX Runtime.
-            - `linux-x64`, `osx-arm64`: the same libraries built with the platform toolchain
-              (gcc / clang), R2 through the WebGPU plugin EP.
+            Each platform has a full build and a `-lite` build (worldline R1.1 only, no ONNX
+            Runtime). Windows uses DirectML for R2; Linux and macOS use the WebGPU plugin
+            execution provider.
 
             See [README](README.md) and [CHANGELOG](CHANGELOG.md).
