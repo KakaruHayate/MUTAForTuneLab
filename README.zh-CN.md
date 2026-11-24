@@ -1,5 +1,9 @@
 # MUTA for TuneLab
 
+[![DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/KakaruHayate/MUTAForTuneLab)
+[![Latest release](https://img.shields.io/github/v/release/KakaruHayate/MUTAForTuneLab)](https://github.com/KakaruHayate/MUTAForTuneLab/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 一个让 MUTA 音源在 TuneLab 里唱歌的插件。它是独立实现：读取本机已安装 MUTA 的音源数据，
 用自带的 worldline 声码器自己合成，不包含任何 MUTA 程序或音源文件。
 
@@ -16,7 +20,7 @@
 
 ## 环境要求
 
-| | |
+| 组件 | 要求 |
 | --- | --- |
 | TuneLab | 2.1.0 或更新 |
 | 系统 | Windows x64、Linux x64、macOS arm64 |
@@ -30,19 +34,6 @@
    **设置 → 扩展 → MUTA for TuneLab → 额外音源目录**里添加。
 
 发布两个版本：**完整版**（R1.1 + R2）和**便携版**（只有 R1.1）。两者在 R1.1 下听感相同。
-
-### MUTA 1.0 音源（嫣汐1.0）
-
-MUTA 1.0 把采样放在名为 `.voice` 的文件里，而且没有声学模型，所以要先重打包：1.0 的索引、
-改名成 `.bnk` 的采样，再加一个 2.0 的模型。打包后的目录会以「嫣汐1.0」显示，和 2.0 的音源
-并存。
-
-嫣汐1.0 音源包和发布包分开分发：解压后把里面的目录加进「额外音源目录」。也可以自己打包：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File tools\repack-muta10.ps1 `
-  -Muta10Dir "D:\muta1\1.0.0.3" -Muta2Dir "C:\Program Files (x86)\Muta"
-```
 
 ## 使用
 

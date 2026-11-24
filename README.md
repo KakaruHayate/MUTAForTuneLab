@@ -1,5 +1,9 @@
 # MUTA for TuneLab
 
+[![DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/KakaruHayate/MUTAForTuneLab)
+[![Latest release](https://img.shields.io/github/v/release/KakaruHayate/MUTAForTuneLab)](https://github.com/KakaruHayate/MUTAForTuneLab/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A TuneLab voice plugin that sings with MUTA voice banks. It is an independent
 implementation: the plugin reads the voice data of an installed MUTA and synthesises the
 audio itself with the bundled worldline vocoder. No MUTA binary or voice data is included.
@@ -18,7 +22,7 @@ audio itself with the bundled worldline vocoder. No MUTA binary or voice data is
 
 ## Requirements
 
-| | |
+| Component | Requirement |
 | --- | --- |
 | TuneLab | 2.1.0 or newer |
 | OS | Windows x64, Linux x64, macOS arm64 |
@@ -33,21 +37,6 @@ audio itself with the bundled worldline vocoder. No MUTA binary or voice data is
 
 Two builds are published: **full** (R1.1 and R2) and **lite** (R1.1 only). They sound the
 same on R1.1.
-
-### MUTA 1.0 voices (嫣汐1.0)
-
-MUTA 1.0 keeps its samples in a file named `.voice` and ships no acoustic model, so it has
-to be repacked before the plugin can load it: the 1.0 index, the samples renamed to
-`.bnk`, and a model from MUTA 2.0. The folder then shows up as 嫣汐1.0, next to the 2.0
-voice.
-
-The 嫣汐1.0 pack is distributed separately from the release: unzip it and add its folder
-under Extra voice directories. To build the pack yourself:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File tools\repack-muta10.ps1 `
-  -Muta10Dir "D:\muta1\1.0.0.3" -Muta2Dir "C:\Program Files (x86)\Muta"
-```
 
 ## Use
 

@@ -32,9 +32,9 @@ MutaRenderer                             一块的完整合成
 
 - `.voice`：HTS 声学模型；可能是编码容器，加载时解码到缓存目录。
 - `.inf`：音源索引，两版共存：
-  - **revision 200**（MUTA 2.0）：6 × int32 头；每行"当前 + 左 + 右 + 11 × int32"
+  - **revision 200**：6 × int32 头；每行"当前 + 左 + 右 + 11 × int32"
     （类别、帧数、prefix/core/suffix、音高码、左右边界音高、bank 偏移与字节数）。
-  - **revision 100**（MUTA 1.0 / 0.2.alpha）：10 × int32 头；每行"单元名 + 9 × int32"
+  - **revision 100**（旧版索引）：10 × int32 头；每行"单元名 + 9 × int32"
     （类别、音高码、帧数、首段帧数、左右边界音高、偏移、字节数）。单元名就是上下文：
     `b_a` 音节、`a-b` 边界、`a` 纯韵母，没有三段划分。
   - 两版都由 `Assets/InfFile` 解析成同一份 11 字段视图，再由 `Synthesis/BankLayout`

@@ -149,8 +149,8 @@ public static class VoiceLibrary
 
         MutaForTuneLab.Synthesis.MutaDiagnostics.Log(
             $"MUTA 1.0 voice in {directory}: '{Path.GetFileName(voice)}' is the recorded bank, " +
-            $"not a model, and there is no matching .bnk. Install the repacked voice instead " +
-            $"(1.0 index + renamed bank + a 2.0 model; see the README section 'MUTA 1.0 voice').");
+            $"not a model, and there is no matching .bnk. Install a repacked voice instead " +
+            $"(old index + renamed bank + a 2.0 model).");
     }
 
     /// <summary>优先 &lt;id&gt;.&lt;ext&gt;，否则取目录里唯一的那个扩展名匹配项。</summary>
